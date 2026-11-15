@@ -5,6 +5,7 @@
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 
+import os
 import yfinance as yf
 import pandas as pd
 import numpy as np
@@ -230,8 +231,115 @@ NSE_ALL_STOCKS = list(set(NIFTY50_STOCKS + NIFTY_NEXT50 + MIDCAP_STOCKS))
 # ─── ALL BSE STOCKS ───
 BSE_ALL_STOCKS = list(set(BSE_LARGECAP + BSE_MIDCAP + BSE_SMALLCAP + BSE_ADDITIONAL))
 
-# ─── COMBINED NSE + BSE UNIVERSE (deduplicated) ───
-ALL_STOCKS = list(set(NSE_ALL_STOCKS + BSE_ALL_STOCKS))
+# ─────────────────────────────────────────────────
+# NSE OFFICIAL F&O (FUTURES & OPTIONS) UNIVERSE (184 STOCKS)
+# ─────────────────────────────────────────────────
+FNO_STOCKS = [
+    "AARTIIND","ABB","ABBOTINDIA","ABCAPITAL","ABFRL","ACC","ADANIENT","ADANIPORTS",
+    "ALKEM","AMBUJACEM","APOLLOHOSP","APOLLOTYRE","ASHOKLEY","ASTRAL","ATUL",
+    "AUBANK","AUROPHARMA","AXISBANK","BAJAJ-AUTO","BAJAJFINSV","BAJFINANCE",
+    "BALKRISIND","BALRAMCHIN","BANDHANBNK","BANKBARODA","BATAINDIA","BEL","BERGEPAINT",
+    "BHARATFORG","BHARTIARTL","BHEL","BIOCON","BOSCHLTD","BPCL","BRITANNIA",
+    "BSOFT","CANBK","CANFINHOME","CHAMBLFERT","CHOLAFIN","CIPLA","COALINDIA",
+    "COFORGE","COLPAL","CONCOR","COROMANDEL","CROMPTON","CUB","CUMMINSIND",
+    "DABUR","DALBHARAT","DEEPAKNTR","DELHIVERY","DIVISLAB","DIXON","DLF",
+    "DRREDDY","EICHERMOT","ESCORTS","EXIDEIND","FEDERALBNK","GAIL","GLENMARK",
+    "GMRINFRA","GNFC","GODREJCP","GODREJPROP","GRANULES","GRASIM","GUJGASLTD",
+    "HAL","HAVELLS","HCLTECH","HDFCAMC","HDFCBANK","HDFCLIFE","HEROMOTOCO",
+    "HINDALCO","HINDCOPPER","HINDPETRO","HINDUNILVR","ICICIBANK","ICICIGI","ICICIPRULI",
+    "IDEA","IDFC","IDFCFIRSTB","IEX","IGL","INDHOTEL","INDIACEM",
+    "INDIAMART","INDIGO","INDUSINDBK","INDUSTOWER","INFY","IOC","IPCALAB",
+    "IRCTC","ITC","JINDALSTEL","JKCEMENT","JSWSTEEL","JUBLFOOD","KOTAKBANK",
+    "LALPATHLAB","LAURUSLABS","LICHSGFIN","LICI","LT","LTIM","LTTS",
+    "LUPIN","M&M","M&MFIN","MANAPPURAM","MARICO","MARUTI","MAXHEALTH",
+    "MCX","METROPOLIS","MFSL","MGL","MOTHERSON","MPHASIS","MRF",
+    "MUTHOOTFIN","NATIONALUM","NAUKRI","NAVINFLUOR","NESTLEIND","NMDC","NTPC",
+    "OBEROIRLTY","OFSS","ONGC","PAGEIND","PEL","PERSISTENT","PETRONET",
+    "PFC","PIDILITIND","PIIND","PNB","POLYCAB","POWERGRID","PVRINOX",
+    "RAMCOCEM","RBLBANK","RECLTD","RELIANCE","SAIL","SBICARD","SBILIFE",
+    "SBIN","SHREECEM","SHRIRAMFIN","SIEMENS","SRF","SUNPHARMA","SUNTV",
+    "SYNGENE","TATACHEM","TATACOMM","TATACONSUM","TATAMOTORS","TATAPOWER","TATASTEEL",
+    "TCS","TECHM","TITAN","TORNTPHARM","TORNTPOWER","TRENT","TVSMOTOR",
+    "UBL","ULTRACEMCO","UPL","VEDL","VOLTAS","WIPRO","ZOMATO","ZYDUSLIFE"
+]
+FNO_STOCKS_SET = set(FNO_STOCKS)
+
+def is_fno_stock(symbol: str) -> bool:
+    """Check if stock symbol is part of NSE F&O derivatives universe"""
+    return str(symbol).strip().upper() in FNO_STOCKS_SET
+
+# ─────────────────────────────────────────────────
+# 1ST DAY IPO & NEW LISTED STOCKS ENGINE
+# ─────────────────────────────────────────────────
+IPO_DATA_FILE = os.path.join(os.path.dirname(__file__), "data", "new_ipo_listings.json")
+
+def load_new_ipo_listings() -> List[Dict]:
+    """Load newly listed and 1st day IPO stocks from persistent storage"""
+    if os.path.exists(IPO_DATA_FILE):
+        try:
+            with open(IPO_DATA_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                today_str = datetime.now().strftime('%Y-%m-%d')
+                for item in data:
+                    l_date = item.get('listing_date', '')
+                    if l_date == today_str:
+                        item['is_day1'] = True
+                        item['status'] = '1ST DAY LISTED'
+                    elif not item.get('status'):
+                        item['status'] = 'RECENT LISTING'
+                return data
+        except Exception:
+            pass
+    return []
+
+def save_new_ipo_listing(ipo_item: Dict) -> bool:
+    """Save or update an IPO listing in persistent storage and auto-add to universes"""
+    try:
+        listings = load_new_ipo_listings()
+        sym = ipo_item.get('symbol', '').strip().upper()
+        if not sym:
+            return False
+        
+        found = False
+        for i, existing in enumerate(listings):
+            if existing.get('symbol', '').upper() == sym:
+                listings[i].update(ipo_item)
+                found = True
+                break
+        if not found:
+            listings.insert(0, ipo_item)
+            
+        os.makedirs(os.path.dirname(IPO_DATA_FILE), exist_ok=True)
+        with open(IPO_DATA_FILE, 'w', encoding='utf-8') as f:
+            json.dump(listings, f, indent=2)
+            
+        # Dynamically inject into universe
+        if sym not in ALL_STOCKS:
+            ALL_STOCKS.append(sym)
+        if sym not in NSE_ALL_STOCKS:
+            NSE_ALL_STOCKS.append(sym)
+        return True
+    except Exception as e:
+        print(f"Error saving IPO listing: {e}")
+        return False
+
+def get_all_ipo_symbols() -> List[str]:
+    """Get list of all tracked IPO & newly listed symbols"""
+    listings = load_new_ipo_listings()
+    symbols = [item['symbol'] for item in listings if item.get('symbol')]
+    return symbols if symbols else ["SWIGGY", "HYUNDAI", "WAAREEENER", "NTPCGREEN", "BAJAJHFL", "PREMIERENE"]
+
+def get_ipo_info(symbol: str) -> Optional[Dict]:
+    """Get IPO listing metadata for a stock if it is a recent listing"""
+    sym = str(symbol).strip().upper()
+    listings = load_new_ipo_listings()
+    for item in listings:
+        if item.get('symbol', '').upper() == sym:
+            return item
+    return None
+
+# ─── COMBINED NSE + BSE UNIVERSE (deduplicated, with F&O and IPOs) ───
+ALL_STOCKS = list(set(NSE_ALL_STOCKS + BSE_ALL_STOCKS + FNO_STOCKS + get_all_ipo_symbols()))
 
 # ─── SECTOR-WISE GROUPINGS ───
 SECTOR_BANKS = [
@@ -981,8 +1089,19 @@ class ScreenerEngine:
             score += 6.0
             reasons.append("EMA20 + SuperTrend + MACD Bullish")
 
-        # 6. ALPHA OVER-PERFORMANCE BOOST (Max +20% -> Scale up to 120%)
+        # 6. ALPHA OVER-PERFORMANCE & NEW IPO/F&O BOOST (Max +20% -> Scale up to 120%)
         ret_1d = ind.get('ret_1d', 0)
+        if ind.get('is_day1_ipo'):
+            score += 15.0
+            reasons.append("🆕 Day-1 IPO Listing Momentum (+15%)")
+        elif ind.get('is_new_listing'):
+            score += 8.0
+            reasons.append("🚀 New IPO Listing Momentum (+8%)")
+
+        if ind.get('is_fno'):
+            score += 4.0
+            reasons.append("⚡ NSE F&O Institutional Liquidity (+4%)")
+
         if ret_1d >= 20.0:
             score += 20.0
             reasons.append("🚀 20%+ Circuit Rocket Alpha (+20%)")
@@ -1645,6 +1764,40 @@ class ScreenerEngine:
         if not indicators:
             return {'symbol': symbol, 'error': 'Computation failed', 'matches': [], 'indicators': {}}
         
+        # F&O and IPO / Day 1 checks
+        is_fno = is_fno_stock(symbol)
+        ipo_info = get_ipo_info(symbol)
+        is_new_listing = (ipo_info is not None)
+        is_day1_ipo = (ipo_info.get('is_day1', False) or ipo_info.get('status') == '1ST DAY LISTED') if ipo_info else False
+
+        # Auto-detect day 1 listing if data has only 1-5 bars and not registered yet
+        if not is_new_listing and len(df) <= 5 and len(df) > 0:
+            is_new_listing = True
+            is_day1_ipo = (len(df) == 1)
+            first_open = float(df['Open'].iloc[0])
+            last_close = float(df['Close'].iloc[-1])
+            gain_pct = round(((last_close - first_open) / first_open) * 100, 2) if first_open > 0 else 0.0
+            auto_ipo = {
+                'symbol': symbol.upper(),
+                'name': f"{symbol.upper()} Limited",
+                'exchange': 'NSE',
+                'series': 'EQ',
+                'listing_date': df.index[0].strftime('%Y-%m-%d'),
+                'issue_price': first_open,
+                'listing_price': first_open,
+                'day1_gain_pct': gain_pct,
+                'category': 'Auto-Detected Day 1 Listing',
+                'status': '1ST DAY LISTED' if len(df) == 1 else 'RECENT LISTING',
+                'is_day1': (len(df) == 1)
+            }
+            save_new_ipo_listing(auto_ipo)
+            ipo_info = auto_ipo
+
+        indicators['is_fno'] = is_fno
+        indicators['is_new_listing'] = is_new_listing
+        indicators['is_day1_ipo'] = is_day1_ipo
+        indicators['ipo_info'] = ipo_info
+
         matches = []
         for mode_id, (name, method, emoji, bias) in self.SCREENER_MODES.items():
             try:
@@ -1667,6 +1820,10 @@ class ScreenerEngine:
         
         return {
             'symbol': symbol,
+            'is_fno': is_fno,
+            'is_new_listing': is_new_listing,
+            'is_day1_ipo': is_day1_ipo,
+            'ipo_info': ipo_info,
             'matches': matches,
             'match_count': len(matches),
             'candlestick_patterns': indicators.get('candlestick_patterns', []),

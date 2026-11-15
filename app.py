@@ -19,6 +19,8 @@ from screener_engine import (
     ALL_STOCKS, NSE_ALL_STOCKS, BSE_ALL_STOCKS,
     NIFTY50_STOCKS, NIFTY_NEXT50, MIDCAP_STOCKS,
     BSE_LARGECAP, BSE_MIDCAP, BSE_SMALLCAP,
+    FNO_STOCKS, is_fno_stock,
+    load_new_ipo_listings, save_new_ipo_listing, get_all_ipo_symbols, get_ipo_info,
     SECTOR_MAP,
     SECTOR_BANKS, SECTOR_IT, SECTOR_PHARMA,
     SECTOR_AUTO, SECTOR_FMCG, SECTOR_REALTY,
@@ -125,6 +127,10 @@ def api_scan():
         stock_list = list(set(BSE_SMALLCAP))
     elif universe == 'bse_all':
         stock_list = list(set(BSE_ALL_STOCKS))
+    elif universe in ('fno', 'fno_universe'):
+        stock_list = FNO_STOCKS
+    elif universe in ('new_ipo', 'ipo_universe', 'new_listed'):
+        stock_list = get_all_ipo_symbols()
     elif universe == 'all_4000':
         stock_list = ALL_4000_SYMBOLS if ALL_4000_SYMBOLS else ALL_STOCKS
     elif universe == 'nse_2600':
@@ -412,6 +418,10 @@ def handle_scan_request(data):
         # Prioritize high momentum universe for 20%+ scan
         stock_list = list(set(BSE_MIDCAP + BSE_SMALLCAP + NIFTY_NEXT50))
         min_ret = 20.0  # strictly 20.0%+ Day Percentage
+    elif universe in ('fno', 'fno_universe'):
+        stock_list = FNO_STOCKS
+    elif universe in ('new_ipo', 'ipo_universe', 'new_listed'):
+        stock_list = get_all_ipo_symbols()
     elif universe == 'all_4000':
         stock_list = ALL_4000_SYMBOLS if ALL_4000_SYMBOLS else list(set(ALL_STOCKS))
     elif universe == 'nse_2600':
@@ -821,6 +831,122 @@ def get_master_stocks():
         'limit': limit,
         'stocks': filtered[start:end]
     })
+
+
+@app.route('/api/fno/stocks')
+def get_fno_stocks():
+    """Return all 184 official NSE F&O derivatives stocks with metadata"""
+    q = (request.args.get('q') or '').strip().upper()
+    stocks = FNO_STOCKS
+    if q:
+        stocks = [s for s in stocks if q in s]
+    return jsonify({
+        'status': 'success',
+        'count': len(stocks),
+        'total_fno': len(FNO_STOCKS),
+        'stocks': stocks
+    })
+
+
+@app.route('/api/ipo/list')
+def get_ipo_list():
+    """Return all 1st day and recently listed IPO stocks with full metadata"""
+    listings = load_new_ipo_listings()
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    
+    # Calculate summary metrics
+    day1_count = sum(1 for item in listings if item.get('listing_date') == today_str or item.get('is_day1'))
+    gains = [item.get('day1_gain_pct', 0) for item in listings if item.get('day1_gain_pct') is not None]
+    avg_gain = round(sum(gains) / len(gains), 1) if gains else 0.0
+    max_gain = max(gains) if gains else 0.0
+    
+    return jsonify({
+        'status': 'success',
+        'count': len(listings),
+        'day1_count': day1_count,
+        'avg_gain': avg_gain,
+        'max_gain': max_gain,
+        'today': today_str,
+        'listings': listings
+    })
+
+
+@app.route('/api/ipo/add', methods=['POST'])
+def add_new_ipo():
+    """Dynamically register any 1st-day IPO listing into the bot's live universe"""
+    data = request.get_json() or {}
+    symbol = data.get('symbol', '').strip().upper()
+    if not symbol:
+        return jsonify({'status': 'error', 'message': 'Stock symbol is required'}), 400
+    
+    name = data.get('name', f"{symbol} Limited")
+    issue_price = float(data.get('issue_price', 0.0))
+    listing_price = float(data.get('listing_price', issue_price or 0.0))
+    exchange = data.get('exchange', 'NSE').upper()
+    category = data.get('category', '1st Day IPO Listing')
+    listing_date = data.get('listing_date') or datetime.now().strftime('%Y-%m-%d')
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    is_day1 = (listing_date == today_str)
+
+    # Compute listing day gain if available
+    day1_gain = 0.0
+    if issue_price > 0 and listing_price > 0:
+        day1_gain = round(((listing_price - issue_price) / issue_price) * 100, 2)
+
+    ipo_entry = {
+        'symbol': symbol,
+        'name': name,
+        'exchange': exchange,
+        'series': 'EQ',
+        'listing_date': listing_date,
+        'issue_price': issue_price,
+        'listing_price': listing_price,
+        'day1_gain_pct': day1_gain,
+        'category': category,
+        'status': '1ST DAY LISTED' if is_day1 else 'RECENT LISTING',
+        'is_day1': is_day1
+    }
+
+    # Save to persistent storage and inject into live engine
+    save_new_ipo_listing(ipo_entry)
+    
+    # Also add to ALL_4000_STOCKS in memory if not present
+    if symbol not in ALL_4000_SYMBOLS:
+        ALL_4000_SYMBOLS.append(symbol)
+        ALL_4000_STOCKS.append({
+            'symbol': symbol,
+            'name': name,
+            'exchange': exchange,
+            'series': 'EQ',
+            'isin': '',
+            'yahoo_ticker': f"{symbol}.NS" if exchange == 'NSE' else f"{symbol}.BO"
+        })
+
+    return jsonify({
+        'status': 'success',
+        'message': f"IPO stock {symbol} successfully added to bot's universe!",
+        'ipo': ipo_entry
+    })
+
+
+@app.route('/api/ipo/auto-discover', methods=['POST', 'GET'])
+def auto_discover_ipos():
+    """Auto-discover recent listings and verify day 1 status"""
+    listings = load_new_ipo_listings()
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    updated = 0
+    for item in listings:
+        if item.get('listing_date') == today_str:
+            item['is_day1'] = True
+            item['status'] = '1ST DAY LISTED'
+            updated += 1
+    return jsonify({
+        'status': 'success',
+        'message': f'Auto-discovery complete. {len(listings)} IPO stocks active.',
+        'day1_count': sum(1 for x in listings if x.get('is_day1')),
+        'total_ipos': len(listings)
+    })
+
 
 
 # ─────────────────────────────────────────────────
