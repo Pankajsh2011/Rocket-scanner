@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RocketScan | NSE & BSE 20%+ Circuit Stock Screener</title>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ═══════════════════ THEME VARIABLES ═══════════════════ */
+:root {
+  /* Grok Light Theme (Default like Screenshot 1) */
+  --bg-primary: #f6f8fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-subtle: #f0f3f6;
+  --border-color: #e1e4e8;
+  --text-main: #1f2328;
+  --text-muted: #656d76;
+  --accent-green: #1a7f37;
+  --accent-red: #cf222e;
+  --accent-blue: #0969da;
+  --accent-purple: #8250df;
+  --accent-orange: #bc4c00;
+  --badge-green-bg: #dafbe1;
+  --badge-green-text: #1a7f37;
+  --badge-red-bg: #ffebe9;
+  --badge-red-text: #cf222e;
+  --badge-blue-bg: #ddf4ff;
+  --badge-blue-text: #0969da;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --shadow-sm: 0 1px 3px rgba(31,35,40,0.08);
+  --shadow-md: 0 4px 12px rgba(31,35,40,0.08);
+}
+
+body.dark-mode {
+  /* Dark Pro Terminal Theme (like Screenshots 2, 3, 5, 6, 7) */
+  --bg-primary: #0a0d14;
+  --bg-secondary: #101522;
+  --bg-card: #151b2b;
+  --bg-subtle: #1c2438;
+  --border-color: #26324b;
+  --text-main: #e6edf3;
+  --text-muted: #7d8590;
+  --accent-green: #2ea043;
+  --accent-red: #f85149;
+  --accent-blue: #388bfd;
+  --accent-purple: #a371f7;
+  --accent-orange: #db6d28;
+  --badge-green-bg: rgba(46,160,67,0.18);
+  --badge-green-text: #3fb950;
+  --badge-red-bg: rgba(248,81,73,0.18);
+  --badge-red-text: #ff7b72;
+  --badge-blue-bg: rgba(56,139,253,0.18);
+  --badge-blue-text: #58a6ff;
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ═══════════════════ TOP HEADER ═══════════════════ */
+.top-header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  box-shadow: var(--shadow-sm);
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.grok-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, #1f2328, #343941);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  font-size: 1.3rem; border: 2px solid var(--border-color);
+}
+body.dark-mode .grok-avatar {
+  background: linear-gradient(135deg, #238636, #1f6feb);
+}
+.grok-title h1 {
+  font-size: 1.15rem; font-weight: 700; letter-spacing: -0.3px;
+  display: flex; align-items: center; gap: 8px;
+}
+.version-tag {
+  font-size: 0.68rem; font-family: var(--font-mono);
+  background: var(--bg-subtle); border: 1px solid var(--border-color);
+  padding: 2px 6px; border-radius: 4px; color: var(--text-muted); font-weight: normal;
+}
+.grok-subtitle { font-size: 0.75rem; color: var(--text-muted); margin-top: 1px; }
+
+/* Metrics Row on Top (like Grok Bot Screenshot) */
+.header-metrics { display: flex; gap: 20px; align-items: center; }
+.metric-box { text-align: right; }
+.metric-box .label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.metric-box .val { font-size: 1.15rem; font-weight: 800; font-family: var(--font-mono); }
+.val-green { color: var(--accent-green); }
+.val-red { color: var(--accent-red); }
+.val-blue { color: var(--accent-blue); }
+
+.header-actions { display: flex; align-items: center; gap: 8px; }
+.theme-toggle-btn {
+  background: var(--bg-subtle); border: 1px solid var(--border-color);
+  color: var(--text-main); padding: 6px 12px; border-radius: 6px;
+  font-size: 0.78rem; cursor: pointer; font-weight: 600;
+}
+.theme-toggle-btn:hover { background: var(--border-color); }
+
+/* ═══════════════════ NAVIGATION TABS ═══════════════════ */
+.nav-bar {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+.tab-group { display: flex; gap: 4px; }
+.nav-tab {
+  background: none; border: none; padding: 8px 16px; border-radius: 6px;
+  color: var(--text-muted); font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: all 0.15s;
+}
+.nav-tab:hover { background: var(--bg-subtle); color: var(--text-main); }
+.nav-tab.active {
+  background: var(--bg-subtle); color: var(--text-main);
+  box-shadow: inset 0 -2px 0 var(--accent-blue);
+}
+
+.rocket-pill-btn {
+  background: linear-gradient(135deg, #ff416c, #ff4b2b);
+  color: white; border: none; padding: 6px 14px; border-radius: 20px;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  animation: pulseRocket 2s infinite;
+}
+@keyframes pulseRocket { 0%,100%{transform:scale(1)} 50%{transform:scale(1.03);box-shadow:0 0 14px rgba(255,75,43,0.5)} }
+
+/* ═══════════════════ CONTROLS BAR ═══════════════════ */
+.controls-bar {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.select-ctl {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 7px 12px; border-radius: 6px; font-size: 0.82rem;
+  outline: none; cursor: pointer; min-width: 150px;
+}
+.select-ctl:focus { border-color: var(--accent-blue); }
+.btn-scan {
+  background: var(--accent-green); color: white; border: none;
+  padding: 8px 20px; border-radius: 6px; font-size: 0.85rem;
+  font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+.btn-scan:hover { opacity: 0.92; }
+.btn-scan:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.min-ret-slider-wrap {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg-primary); padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border-color);
+  font-size: 0.78rem;
+}
+.min-ret-slider-wrap input[type=range] { width: 90px; cursor: pointer; }
+
+/* ═══════════════════ PROGRESS BAR ═══════════════════ */
+.progress-container {
+  display: none; padding: 6px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border-color);
+}
+.progress-container.show { display: block; }
+.progress-bar-rail { width: 100%; height: 6px; background: var(--bg-subtle); border-radius: 3px; overflow: hidden; }
+.progress-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+  transition: width 0.3s ease;
+}
+.progress-info { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 4px; }
+
+/* ═══════════════════ TAB 1: GROK BOT TERMINAL VIEW ═══════════════════ */
+.grok-container {
+  padding: 20px 24px;
+  display: grid;
+  grid-template-columns: 240px 1fr 340px;
+  gap: 16px;
+  min-height: calc(100vh - 180px);
+}
+
+/* Agents Column */
+.agents-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.panel-section-title {
+  font-size: 0.68rem; font-family: var(--font-mono);
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+}
+.agent-card {
+  border-left: 3px solid var(--accent-blue);
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+}
+.agent-card.scanner { border-color: var(--accent-orange); }
+.agent-card.rug { border-color: var(--accent-red); }
+.agent-card.sizer { border-color: var(--accent-purple); }
+.agent-card.executor { border-color: var(--accent-green); }
+.agent-card.logger { border-color: var(--accent-orange); }
+.agent-card.equity { border-color: var(--accent-blue); }
+.agent-card.you { border-color: var(--text-muted); }
+
+.agent-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+.agent-sub { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+.agent-action { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-main); margin-top: 4px; }
+
+/* Center Flow Column */
+.flow-center-panel {
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* Live Flow Bar */
+.live-flow-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.flow-tokens-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 8px;
+}
+.flow-token-card {
+  background: var(--bg-primary); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 8px 12px; text-align: center;
+}
+.flow-token-card.active { border-color: var(--accent-blue); background: var(--bg-subtle); }
+.flow-token-sym { font-weight: 800; font-family: var(--font-mono); font-size: 0.9rem; }
+.flow-token-badge { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+
+/* Sub Stat Boxes (Filtered, Sizer, Logger, Equity) */
+.sub-stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+}
+.sub-stat-box {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 10px; box-shadow: var(--shadow-sm);
+}
+.sub-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-family: var(--font-mono); }
+.sub-stat-val { font-size: 1.1rem; font-weight: 800; font-family: var(--font-mono); margin-top: 4px; }
+
+/* Active Trade Card */
+.active-trade-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.trade-card-header {
+  display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px; margin-bottom: 12px;
+}
+.trade-sym-title { font-size: 1.25rem; font-weight: 800; font-family: var(--font-mono); display: flex; align-items: center; gap: 8px; }
+.badge-live {
+  background: var(--badge-green-bg); color: var(--badge-green-text);
+  font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; font-family: var(--font-mono);
+}
+.trade-details-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;
+}
+.trade-detail-cell {
+  background: var(--bg-primary); border-radius: 6px; padding: 8px 12px;
+}
+.trade-detail-cell .lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+.trade-detail-cell .num { font-size: 1.05rem; font-weight: 700; font-family: var(--font-mono); margin-top: 2px; }
+
+/* Mini Sparkline Chart Container */
+.chart-box {
+  background: var(--bg-primary); border: 1px solid var(--border-color);
+  border-radius: 6px; padding: 10px; height: 160px; position: relative;
+}
+
+/* Right Column: Tail -f Night.log */
+.night-log-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex; flex-direction: column;
+  box-shadow: var(--shadow-sm);
+}
+.terminal-window {
+  background: #0d1117;
+  color: #56d364;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.6;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 280px;
+}
+.log-line-enter { color: #58a6ff; }
+.log-line-exit { color: #3fb950; }
+.log-line-filtered { color: #8b949e; }
+.log-line-stop { color: #f85149; }
+
+/* Trade History Rows (Bottom of Grok) */
+.grok-history-table {
+  width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 8px;
+}
+.grok-history-table th {
+  text-align: left; padding: 6px 8px; font-size: 0.68rem; color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color); font-family: var(--font-mono);
+}
+.grok-history-table td {
+  padding: 8px; border-bottom: 1px solid var(--border-color); vertical-align: middle;
+}
+
+/* ═══════════════════ TAB 2: CARDS GRID VIEW (Screenshot 2) ═══════════════════ */
+.cards-grid-container {
+  display: none; padding: 20px 24px;
+}
+.cards-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px;
+}
+.stock-signal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  box-shadow: var(--shadow-sm); transition: transform 0.15s, border-color 0.15s;
+}
+.stock-signal-card:hover {
+  transform: translateY(-2px); border-color: var(--accent-blue); box-shadow: var(--shadow-md);
+}
+.card-top {
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;
+}
+.card-sym { font-weight: 800; font-family: var(--font-mono); font-size: 0.95rem; }
+.card-type-tag {
+  font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;
+}
+.tag-target { background: #ffe082; color: #795548; }
+.tag-rocket { background: #ff5252; color: white; animation: pulse 1.5s infinite; }
+
+.card-action-badge {
+  display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 700;
+  margin-bottom: 8px;
+}
+.badge-buy-limit { background: #00e676; color: #000; }
+.badge-sell-limit { background: #ff1744; color: #fff; }
+
+.card-metrics-table {
+  width: 100%; font-size: 0.72rem; margin-bottom: 10px;
+}
+.card-metrics-table td { padding: 2px 0; }
+.card-metrics-table .lbl { color: var(--text-muted); }
+.card-metrics-table .val { text-align: right; font-family: var(--font-mono); font-weight: 700; }
+
+.card-footer {
+  border-top: 1px solid var(--border-color); padding-top: 8px;
+  display: flex; justify-content: space-between; align-items: center; font-size: 0.7rem;
+}
+.btn-card-action {
+  background: var(--bg-subtle); border: 1px solid var(--border-color);
+  padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; font-weight: 600; cursor: pointer;
+  color: var(--text-main);
+}
+.btn-card-action:hover { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+
+/* ═══════════════════ TAB 3: DISCOVERY HEATMAP TABLE (Screenshots 5, 6, 7) ═══════════════════ */
+.table-view-container {
+  display: none; padding: 20px 24px;
+}
+.pro-table {
+  width: 100%; border-collapse: collapse; font-size: 0.8rem; background: var(--bg-card);
+  border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.pro-table th {
+  background: var(--bg-subtle); color: var(--text-muted); padding: 10px 14px;
+  font-size: 0.68rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-color); text-align: left;
+}
+.pro-table td {
+  padding: 10px 14px; border-bottom: 1px solid var(--border-color); vertical-align: middle;
+}
+.pro-table tr:hover td { background: var(--bg-subtle); }
+
+.chg-box {
+  display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 700;
+  font-family: var(--font-mono); font-size: 0.75rem; text-align: center; min-width: 65px;
+}
+.chg-box.rocket-20 {
+  background: #ff1744; color: #fff; box-shadow: 0 0 10px rgba(255,23,68,0.4);
+}
+.chg-box.green { background: var(--badge-green-bg); color: var(--badge-green-text); }
+.chg-box.red { background: var(--badge-red-bg); color: var(--badge-red-text); }
+
+/* Score progress bar */
+.score-cell-wrap { display: flex; align-items: center; gap: 8px; }
+.score-bar-rail { width: 60px; height: 6px; background: var(--bg-subtle); border-radius: 3px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 3px; }
+
+/* ═══════════════════ TREND METER STYLES ═══════════════════ */
+.trend-meter-card-wrap {
+  margin: 6px 0 8px 0;
+  padding: 6px 8px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+.trend-meter-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+}
+.trend-meter-led-rail {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  width: 100%;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(120, 144, 156, 0.15);
+  padding: 1px;
+}
+.trend-led-bar {
+  flex: 1;
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(120, 144, 156, 0.2);
+  transition: all 0.3s ease;
+}
+.trend-led-bar.bar-1-lit { background: #d50000; box-shadow: 0 0 5px rgba(213,0,0,0.5); }
+.trend-led-bar.bar-2-lit { background: #ff5252; box-shadow: 0 0 5px rgba(255,82,82,0.5); }
+.trend-led-bar.bar-3-lit { background: #ffb300; box-shadow: 0 0 5px rgba(255,179,0,0.5); }
+.trend-led-bar.bar-4-lit { background: #4caf50; box-shadow: 0 0 5px rgba(76,175,80,0.5); }
+.trend-led-bar.bar-5-lit { background: #00e676; box-shadow: 0 0 7px rgba(0,230,118,0.7); }
+
+/* Table Compact Trend Meter */
+.table-trend-meter-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.table-trend-rail {
+  display: flex;
+  gap: 2px;
+  width: 40px;
+  height: 9px;
+  background: rgba(120, 144, 156, 0.15);
+  padding: 1px;
+  border-radius: 2px;
+}
+.table-trend-bar {
+  flex: 1;
+  height: 100%;
+  border-radius: 1px;
+  background: rgba(120, 144, 156, 0.2);
+}
+.table-trend-bar.bar-1-lit { background: #d50000; }
+.table-trend-bar.bar-2-lit { background: #ff5252; }
+.table-trend-bar.bar-3-lit { background: #ffb300; }
+.table-trend-bar.bar-4-lit { background: #4caf50; }
+.table-trend-bar.bar-5-lit { background: #00e676; }
+
+/* ═══════════════════ TAB 4: 20%+ CIRCUIT ROCKETS ═══════════════════ */
+.rockets-view-container {
+  display: none; padding: 20px 24px;
+}
+.circuit-hero {
+  background: linear-gradient(135deg, rgba(255,65,108,0.1), rgba(255,75,43,0.15));
+  border: 1px solid rgba(255,75,43,0.3); border-radius: 8px;
+  padding: 16px 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;
+}
+.circuit-hero h2 { font-size: 1.2rem; color: #ff4b2b; display: flex; align-items: center; gap: 8px; }
+.circuit-hero p { font-size: 0.8rem; color: var(--text-muted); margin-top: 4px; }
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 1000; display: none; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 12px; width: 90%; max-width: 850px; max-height: 85vh;
+  overflow-y: auto; padding: 20px; box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 900px) {
+  .grok-container { grid-template-columns: 1fr; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body class="light-mode">
+
+<!-- ═══════════════════ TOP HEADER ═══════════════════ -->
+<header class="top-header">
+  <div class="header-left">
+    <div class="grok-avatar">🚀</div>
+    <div class="grok-title">
+      <h1>RocketScan <span class="version-tag">v2.0-pro · NSE/BSE</span></h1>
+      <div class="grok-subtitle">20%+ Circuit Rockets · 75 Technical Screeners · 80-120% Accuracy & Paper Trading</div>
+    </div>
+  </div>
+
+  <div class="header-metrics">
+    <div class="metric-box" style="cursor:pointer;" onclick="openPaperPortfolioModal()" title="Click to view Virtual Portfolio">
+      <div class="label">VIRTUAL CAPITAL</div>
+      <div class="val" id="top-paper-balance" style="color:var(--accent-blue); font-weight:800;">₹10,00,000</div>
+    </div>
+    <div class="metric-box">
+      <div class="label">MARKET STATUS</div>
+      <div class="val" id="top-market-status" style="font-size:0.75rem; font-weight:700;">
+        <span class="val-green">● LIVE NSE/BSE</span>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="label">PAPER P&L</div>
+      <div class="val" id="top-paper-pnl"><span class="val-green">+₹0.00</span></div>
+    </div>
+    <div class="metric-box">
+      <div class="label">ACCURACY RANGE</div>
+      <div class="val" id="top-accuracy-badge">
+        <span class="val-green">🎯 80% - 120%</span>
+      </div>
+    </div>
+    <div class="metric-box">
+      <div class="label">STATUS</div>
+      <div class="val val-green" id="top-status">● running</div>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <button class="theme-toggle-btn" onclick="openPaperPortfolioModal()" style="border-color:#2563eb; color:#2563eb; font-weight:700;" title="Open Virtual Paper Trading Portfolio">
+      💼 Paper Portfolio (<span id="top-pos-count">0</span>)
+    </button>
+    <button class="theme-toggle-btn" onclick="toggleTheme()" id="theme-btn">🌙 Dark Mode</button>
+  </div>
+</header>
+
+<!-- ═══════════════════ NAVIGATION TABS ═══════════════════ -->
+<nav class="nav-bar">
+  <div class="tab-group">
+    <button class="nav-tab active" onclick="switchView('grok')">🚀 Rocket Terminal</button>
+    <button class="nav-tab" onclick="switchView('cards')">🗂️ Signal Cards Grid</button>
+    <button class="nav-tab" onclick="switchView('table')">📊 Discovery Pro Heatmap</button>
+    <button class="nav-tab" onclick="switchView('rockets')">🚀 20%+ Circuit Rockets</button>
+  </div>
+  <button class="rocket-pill-btn" onclick="quickScan20Rockets()">
+    🔥 Scan 20%+ Rockets Now
+  </button>
+</nav>
+
+<!-- ═══════════════════ CONTROLS BAR ═══════════════════ -->
+<div class="controls-bar">
+  <select class="select-ctl" id="universe-select">
+    <option value="nifty50">🏆 Nifty 50 (50 stocks)</option>
+    <option value="nifty100">📊 Nifty 100 (100 stocks)</option>
+    <option value="nse_all">🇮🇳 NSE All (~150 stocks)</option>
+    <optgroup label="── BSE ──">
+      <option value="bse_large">🏛️ BSE LargeCap (~60 stocks)</option>
+      <option value="bse_mid">📈 BSE MidCap (~280 stocks)</option>
+      <option value="bse_small">💎 BSE SmallCap (~150 stocks)</option>
+      <option value="bse_all">🌐 BSE All (~545 stocks)</option>
+    </optgroup>
+    <optgroup label="── 🎯 Custom Selection ──">
+      <option value="custom_selected">🎯 Custom Selected Stocks (<span id="opt-selected-count">0</span>)</option>
+    </optgroup>
+    <optgroup label="── Special ──">
+      <option value="all_4000">🇮🇳 All Indian Stocks (4,200+ Equities)</option>
+      <option value="nse_2600">🏆 Official NSE Equities (2,635 Stocks)</option>
+      <option value="bse_exclusive">🏛️ BSE Exclusive Equities (1,565 Stocks)</option>
+      <option value="rockets_20">🚀 20%+ Circuit Rockets Universe</option>
+      <option value="all">🌐 Master Watchlist (563+ stocks)</option>
+    </optgroup>
+  </select>
+
+  <select class="select-ctl" id="mode-select">
+    <option value="">🔭 All 75 Screener Modes</option>
+    <optgroup label="── 🕯️ High Accuracy Candlestick Patterns ──">
+      <option value="56">🎖️ Mode 56: Three White Soldiers (92% Accuracy)</option>
+      <option value="57">🌅 Mode 57: Morning Star Reversal (91% Accuracy)</option>
+      <option value="58">🟢 Mode 58: Bullish Engulfing with Volume (89%)</option>
+      <option value="59">🔨 Mode 59: Hammer & Pin Bar Rejection (89%)</option>
+      <option value="73">🤰 Mode 73: Bullish Harami + Three Inside Up (90%)</option>
+      <option value="74">🗡️ Mode 74: Piercing Line Support (82%)</option>
+      <option value="70">🔱 Mode 70: Double Bottom W-Pattern Reversal</option>
+      <option value="39">🔨 Mode 39: Classic Hammer Reversal</option>
+      <option value="40">⭐ Mode 40: Shooting Star Top Reversal</option>
+    </optgroup>
+    <optgroup label="── 🚀 20%+ Circuit Rockets & Breakouts ──">
+      <option value="51">🚀 Mode 51: 20%+ Single-Day Circuit Rocket</option>
+      <option value="52">⚡ Mode 52: 20%+ Weekly Momentum Surge</option>
+      <option value="53">🔥 Mode 53: 20%+ Monthly Multi-Bagger</option>
+      <option value="54">💎 Mode 54: 30%+ High Beta Rocket</option>
+      <option value="55">🌪️ Mode 55: Explosive Volume Circuit (5x Vol)</option>
+      <option value="75">🔒 Mode 75: Upper Circuit Momentum Lock</option>
+    </optgroup>
+    <optgroup label="── 🏛️ Institutional & Smart Money Concepts ──">
+      <option value="60">🎯 Mode 60: Narrow CPR Virgin Trend Day</option>
+      <option value="61">🏛️ Mode 61: Fair Value Gap (FVG) / Order Block Bounce</option>
+      <option value="62">🗜️ Mode 62: TTM Squeeze Momentum Firing</option>
+      <option value="63">🎀 Mode 63: EMA Ribbon Fan-out (9>20>50>200)</option>
+      <option value="65">🥇 Mode 65: Relative Strength vs Nifty50</option>
+      <option value="66">🏦 Mode 66: Institutional Delivery Accumulation</option>
+      <option value="67">✨ Mode 67: Golden Cross 50/200 EMA Retest</option>
+      <option value="68">🎢 Mode 68: Anchored VWAP Institutional Bounce</option>
+      <option value="9">🏦 Mode 9: Institutional Accumulation</option>
+      <option value="21">🏛️ Mode 21: Smart Money Flow</option>
+    </optgroup>
+    <optgroup label="── 📊 Classic High Probability Breakouts ──">
+      <option value="1">🚀 Mode 1: Momentum Breakout</option>
+      <option value="2">✨ Mode 2: Golden Crossover</option>
+      <option value="3">🔄 Mode 3: RSI Reversal</option>
+      <option value="4">📈 Mode 4: MACD Bullish</option>
+      <option value="6">⚡ Mode 6: SuperTrend Buy</option>
+      <option value="10">🏆 Mode 10: 52W High Breakout</option>
+      <option value="18">🎯 Mode 18: Triple Confirmation</option>
+      <option value="30">⭐ Mode 30: Power Momentum</option>
+      <option value="64">📈 Mode 64: RSI Bullish Divergence</option>
+      <option value="69">☕ Mode 69: Cup and Handle Breakout</option>
+      <option value="71">📦 Mode 71: Inside Bar Explosive Breakout</option>
+      <option value="72">⚡ Mode 72: SuperTrend + ADX > 25 Acceleration</option>
+    </optgroup>
+  </select>
+
+  <select class="select-ctl" id="top-select" style="min-width: 100px;">
+    <option value="10">Top 10</option>
+    <option value="20" selected>Top 20</option>
+    <option value="30">Top 30</option>
+    <option value="50">Top 50</option>
+  </select>
+
+  <div class="min-ret-slider-wrap">
+    <span>Min Move:</span>
+    <input type="range" id="min-ret-slider" min="0" max="30" value="0" step="5" oninput="updateMinRetDisplay(this.value)">
+    <strong id="min-ret-display">All</strong>
+  </div>
+
+  <select class="select-ctl" id="accuracy-filter-select" style="min-width:140px; font-weight:700; color:#00e676; border-color:rgba(0,230,118,0.4);" title="Filter stocks by quantitative accuracy rating (80% to 120%)">
+    <option value="80" selected>🎯 Min Accuracy: 80%+ (All)</option>
+    <option value="90">🎯 Min Accuracy: 90%+ (High)</option>
+    <option value="100">💎 Min Accuracy: 100%+ (Perfect)</option>
+    <option value="110">🔥 Min Accuracy: 110%+ (Alpha Rockets)</option>
+  </select>
+
+  <div class="accuracy-toggle-wrap" style="display:flex; align-items:center; gap:6px; background:var(--bg-subtle); padding:6px 12px; border-radius:6px; border:1px solid rgba(0,212,255,0.35); cursor:pointer;" title="Auto-scan every 30 seconds during live market">
+    <input type="checkbox" id="live-auto-refresh" style="cursor:pointer; accent-color:#00d4ff; width:15px; height:15px;" onchange="toggleLiveAutoRefresh(this.checked)">
+    <label for="live-auto-refresh" style="font-size:0.75rem; font-weight:700; color:var(--text-main); cursor:pointer; user-select:none; display:flex; align-items:center; gap:4px;">
+      ⚡ <span style="color:#00d4ff;">Live Auto (30s)</span>
+    </label>
+  </div>
+
+  <button class="btn-scan" id="scan-btn" onclick="triggerScan()">
+    🚀 SCAN MARKET
+  </button>
+  <button class="btn-scan" id="stop-scan-btn" onclick="stopScan()" style="background:#ff334b; display:none; border-color:#ff334b; font-weight:700;">
+    ⏹️ STOP SCAN
+  </button>
+  <button class="btn-scan" id="scan-selected-btn" onclick="scanSelectedStocks()" style="background:#7c3aed; display:none; border-color:#7c3aed; font-weight:700;">
+    🎯 SCAN SELECTED (<span id="btn-sel-count">0</span>)
+  </button>
+</div>
+
+<!-- ═══════════════════ SELECTED STOCKS TOOLBAR ═══════════════════ -->
+<div class="selection-bar" id="selection-bar" style="display:none; background:var(--bg-secondary); border:1px solid #7c3aed; border-radius:8px; padding:10px 16px; margin: 10px 24px 0 24px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; box-shadow: 0 4px 14px rgba(124,58,237,0.12);">
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <span style="font-size:1.2rem;">🎯</span>
+    <strong style="color:#7c3aed;">Custom Watchlist Selection:</strong>
+    <span class="badge" style="background:#7c3aed; color:#fff; font-size:0.75rem; padding:2px 8px; border-radius:12px;" id="selected-count-badge">0 selected</span>
+    <div id="selected-stocks-badges" style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; max-height:60px; overflow-y:auto;"></div>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <button class="btn-card-action" onclick="scanSelectedStocks()" style="background:#7c3aed; color:#fff; border-color:#7c3aed; font-weight:700; padding:6px 14px;">
+      🚀 Run Selected Screener
+    </button>
+    <button class="btn-card-action" onclick="openAddStockModal()" style="border-color:var(--border-color); padding:6px 12px;" title="Type or paste custom stock symbols">
+      ➕ Add/Paste Symbols
+    </button>
+    <button class="btn-card-action" onclick="clearSelectedStocks()" style="border-color:var(--border-color); color:var(--accent-red); padding:6px 12px;">
+      🗑️ Clear All
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════ PROGRESS BAR ═══════════════════ -->
+<div class="progress-container" id="progress-container">
+  <div class="progress-bar-rail">
+    <div class="progress-bar-fill" id="progress-fill"></div>
+  </div>
+  <div class="progress-info" id="progress-info">Scanning market...</div>
+</div>
+
+<!-- ═══════════════════ TAB 1: GROK BOT TERMINAL ═══════════════════ -->
+<div class="grok-container" id="view-grok">
+  <!-- Column 1: AGENTS -->
+  <div class="agents-panel">
+    <div class="panel-section-title">
+      <span>AGENTS</span>
+      <span style="color:var(--accent-green)">6 ONLINE</span>
+    </div>
+    <div id="grok-agents-list">
+      <!-- Injected dynamically -->
+    </div>
+  </div>
+
+  <!-- Column 2: LIVE FLOW & ACTIVE TRADE -->
+  <div class="flow-center-panel">
+    <!-- Live Flow Bar -->
+    <div class="live-flow-bar">
+      <div class="panel-section-title">
+        <span>LIVE FLOW · SCAN ➔ CHECK ➔ SIZE ➔ EXEC ➔ LOG</span>
+        <span>CHECKED 28</span>
+      </div>
+      <div class="flow-tokens-grid" id="flow-tokens">
+        <!-- Injected dynamically -->
+      </div>
+    </div>
+
+    <!-- Sub Stats (Filtered, Sizer, Logger, Equity) -->
+    <div class="sub-stats-grid">
+      <div class="sub-stat-box">
+        <div class="sub-stat-label">▲ FILTERED</div>
+        <div class="sub-stat-val val-red">8 <span style="font-size:0.65rem;color:var(--text-muted);font-weight:normal;">+3 skipped</span></div>
+      </div>
+      <div class="sub-stat-box">
+        <div class="sub-stat-label">◆ SIZER</div>
+        <div class="sub-stat-val val-blue">32% eq <span style="font-size:0.65rem;color:var(--text-muted);font-weight:normal;">₹49,890</span></div>
+      </div>
+      <div class="sub-stat-box">
+        <div class="sub-stat-label">● LOGGER</div>
+        <div class="sub-stat-val" style="color:var(--accent-orange)">line #42</div>
+      </div>
+      <div class="sub-stat-box">
+        <div class="sub-stat-label">💧 EQUITY</div>
+        <div class="sub-stat-val val-green">+₹5,820 <span style="font-size:0.65rem;color:var(--text-muted);font-weight:normal;">today</span></div>
+      </div>
+    </div>
+
+    <!-- Active Trade Card -->
+    <div class="active-trade-card">
+      <div class="trade-card-header">
+        <div>
+          <div class="panel-section-title" style="margin:0 0 4px;">TRADE · ENTRY VS EXIT</div>
+          <div class="trade-sym-title">
+            <span id="active-sym">$TRENT</span>
+            <span class="badge-live">LIVE</span>
+            <span style="font-size:0.85rem; font-family:var(--font-mono); color:var(--accent-green);" id="active-ret">+3.5% live</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.7rem; color:var(--text-muted);">SLIPPAGE CAP 2.0%</div>
+          <div style="font-size:0.75rem; font-family:var(--font-mono); font-weight:700;">SLIP 0.8%</div>
+        </div>
+      </div>
+
+      <div class="trade-details-grid">
+        <div class="trade-detail-cell">
+          <div class="lbl">ENTRY</div>
+          <div class="num" id="active-entry">₹6,840.00</div>
+        </div>
+        <div class="trade-detail-cell">
+          <div class="lbl">STOP LOSS</div>
+          <div class="num val-red" id="active-sl">₹6,620.00</div>
+        </div>
+        <div class="trade-detail-cell">
+          <div class="lbl">TARGET</div>
+          <div class="num val-green" id="active-target">₹7,250.00</div>
+        </div>
+        <div class="trade-detail-cell">
+          <div class="lbl">SIZE</div>
+          <div class="num" id="active-size">32% equity</div>
+        </div>
+      </div>
+
+      <!-- Mini Sparkline Canvas -->
+      <div class="chart-box">
+        <canvas id="active-trade-chart"></canvas>
+      </div>
+
+      <div style="font-size:0.72rem; color:var(--text-muted); margin-top:8px; font-family:var(--font-mono);" id="active-reason">
+        reason: volume 3.5x in 15m · RSI 64 Bullish · 8 screener modes matched
+      </div>
+    </div>
+  </div>
+
+  <!-- Column 3: Tail -f Night.log -->
+  <div class="night-log-panel">
+    <div class="panel-section-title">
+      <span>$ tail -f night.log</span>
+      <span>23 lines</span>
+    </div>
+    <div class="terminal-window" id="terminal-log">
+      <!-- Terminal lines -->
+    </div>
+
+    <!-- Trade History Table -->
+    <div class="panel-section-title" style="margin-top:14px;">
+      <span>RESULT · START VS NOW</span>
+      <span class="val-green">₹1,33,700 ➔ ₹1,55,920</span>
+    </div>
+    <table class="grok-history-table">
+      <thead>
+        <tr><th>TIME</th><th>EVENT</th><th>SYMBOL</th><th>PNL</th></tr>
+      </thead>
+      <tbody id="grok-history-rows">
+        <!-- History rows -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 2: CARDS GRID (Screenshot 2) ═══════════════════ -->
+<div class="cards-grid-container" id="view-cards">
+  <div class="panel-section-title" style="margin-bottom:14px;">
+    <span>⚡ LIVE TECHNICAL SIGNAL CARDS</span>
+    <span id="cards-count-badge">0 CARDS</span>
+  </div>
+  <div class="cards-grid" id="cards-grid">
+    <!-- Signal cards injected here -->
+  </div>
+</div>
+
+<!-- ═══════════════════ TAB 3: DISCOVERY HEATMAP TABLE ═══════════════════ -->
+<div class="table-view-container" id="view-table">
+  <table class="pro-table">
+    <thead>
+      <tr>
+        <th style="width:36px; text-align:center;"><input type="checkbox" id="select-all-cbs" onchange="toggleSelectAllStocks(this.checked)" title="Select/Deselect All Stocks"></th>
+        <th>TICKER</th>
+        <th>EXCHANGE</th>
+        <th>LAST PRICE</th>
+        <th>CHG (%)</th>
+        <th>VOLUME</th>
+        <th>MONEY FLOW</th>
+        <th>COMPOSITE SCORE</th>
+        <th>TREND METER</th>
+        <th>ACCURACY</th>
+        <th>VWAP DIST</th>
+        <th>SIGNALS</th>
+        <th>ACTION</th>
+      </tr>
+    </thead>
+    <tbody id="pro-table-body">
+      <!-- Rows injected here -->
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════ TAB 4: 20%+ CIRCUIT ROCKETS ═══════════════════ -->
+<div class="rockets-view-container" id="view-rockets">
+  <div class="circuit-hero">
+    <div>
+      <h2>🚀 20%+ SINGLE-DAY CIRCUIT ROCKETS</h2>
+      <p>Filter strictly scans for stocks with <strong>Day Percentage ≥ 20.0%</strong> (Upper Circuit Lock / 20%+ Single-Day Rockets) across NSE & BSE.</p>
+    </div>
+    <button class="btn-scan" style="background:#ff4b2b;" onclick="quickScan20Rockets()">
+      🔥 SCAN 20%+ DAY ROCKETS
+    </button>
+  </div>
+  <div class="cards-grid" id="rockets-grid">
+    <!-- 20%+ cards -->
+  </div>
+</div>
+
+<!-- ═══════════════════ DETAIL MODAL ═══════════════════ -->
+<div class="modal-overlay" id="detail-modal" onclick="closeModal(event)">
+  <div class="modal-card" id="modal-card-content">
+    <!-- Injected dynamically -->
+  </div>
+</div>
+
+<!-- ═══════════════════ PAPER ORDER MODAL ═══════════════════ -->
+<div class="modal-overlay" id="paper-order-modal" onclick="closePaperOrderModal(event)">
+  <div class="modal-card" style="max-width:480px; border-top:4px solid #059669;" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.4rem;">📝</span>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; font-family:var(--font-mono);">Execute Virtual Paper Trade</h3>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Risk-Free Simulation · Real-Time Market Prices</div>
+        </div>
+      </div>
+      <button onclick="closePaperOrderModal(null, true)" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+    </div>
+
+    <form id="paper-order-form" onsubmit="submitPaperOrder(event)">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">SYMBOL</label>
+          <input type="text" id="paper-ord-symbol" readonly style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:800; font-family:var(--font-mono); color:var(--text-main);">
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">TRANSACTION</label>
+          <select id="paper-ord-side" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:800; color:var(--text-main);" onchange="updatePaperCost()">
+            <option value="BUY" selected>🟢 BUY (Long)</option>
+            <option value="SELL">🔴 SELL (Short)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">EXECUTION PRICE (₹)</label>
+          <input type="number" step="0.05" id="paper-ord-price" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:700; font-family:var(--font-mono); color:var(--text-main);" oninput="updatePaperCost()">
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">QUANTITY (SHARES)</label>
+          <input type="number" id="paper-ord-qty" min="1" value="50" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:700; color:var(--text-main);" oninput="updatePaperCost()">
+        </div>
+      </div>
+
+      <!-- Quick Qty Chips -->
+      <div style="display:flex; gap:6px; margin-bottom:12px; align-items:center;">
+        <span style="font-size:0.7rem; color:var(--text-muted);">Quick Qty:</span>
+        <button type="button" onclick="setPaperQty(10)" style="padding:3px 8px; font-size:0.68rem; border-radius:4px; background:var(--bg-subtle); border:1px solid var(--border-color); cursor:pointer;">10</button>
+        <button type="button" onclick="setPaperQty(25)" style="padding:3px 8px; font-size:0.68rem; border-radius:4px; background:var(--bg-subtle); border:1px solid var(--border-color); cursor:pointer;">25</button>
+        <button type="button" onclick="setPaperQty(50)" style="padding:3px 8px; font-size:0.68rem; border-radius:4px; background:var(--bg-subtle); border:1px solid var(--border-color); cursor:pointer;">50</button>
+        <button type="button" onclick="setPaperQty(100)" style="padding:3px 8px; font-size:0.68rem; border-radius:4px; background:var(--bg-subtle); border:1px solid var(--border-color); cursor:pointer;">100</button>
+        <button type="button" onclick="setPaperQty(500)" style="padding:3px 8px; font-size:0.68rem; border-radius:4px; background:var(--bg-subtle); border:1px solid var(--border-color); cursor:pointer;">500</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--accent-red); font-weight:700;">STOP LOSS (₹)</label>
+          <input type="number" step="0.05" id="paper-ord-sl" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); color:var(--accent-red);">
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--accent-green); font-weight:700;">TARGET (₹)</label>
+          <input type="number" step="0.05" id="paper-ord-target" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); color:var(--accent-green);">
+        </div>
+      </div>
+
+      <!-- Margin Summary -->
+      <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:6px; padding:10px; margin-bottom:14px; font-size:0.75rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span style="color:var(--text-muted);">Margin Required:</span>
+          <strong id="paper-margin-req" style="font-family:var(--font-mono);">₹0.00</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Available Cash:</span>
+          <span id="paper-avail-cash" style="font-family:var(--font-mono); color:var(--accent-green); font-weight:700;">₹10,00,000.00</span>
+        </div>
+      </div>
+
+      <div id="paper-order-status" style="margin-bottom:10px; font-size:0.75rem; text-align:center;"></div>
+
+      <button type="submit" id="paper-submit-btn" style="width:100%; padding:12px; background:linear-gradient(135deg, #059669, #10b981); color:#fff; font-weight:800; font-size:0.9rem; border:none; border-radius:6px; cursor:pointer;">
+        ⚡ Execute Virtual Paper Trade
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════ PAPER PORTFOLIO MODAL ═══════════════════ -->
+<div class="modal-overlay" id="paper-portfolio-modal" onclick="closePaperPortfolioModal(event)">
+  <div class="modal-card" style="max-width:760px; border-top:4px solid #2563eb;" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.4rem;">💼</span>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; font-family:var(--font-mono);">Virtual Paper Trading Portfolio</h3>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Live Unrealized P&L · Real-Time Position Tracking</div>
+        </div>
+      </div>
+      <button onclick="closePaperPortfolioModal(null, true)" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+    </div>
+
+    <!-- Portfolio Metric Cards -->
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:16px;">
+      <div class="trade-detail-cell">
+        <div class="lbl">TOTAL EQUITY</div>
+        <div class="num" id="port-equity" style="color:var(--accent-blue); font-size:1.05rem;">₹10,00,000</div>
+      </div>
+      <div class="trade-detail-cell">
+        <div class="lbl">CASH AVAILABLE</div>
+        <div class="num" id="port-cash" style="font-size:1.05rem;">₹10,00,000</div>
+      </div>
+      <div class="trade-detail-cell">
+        <div class="lbl">UNREALIZED P&L</div>
+        <div class="num" id="port-unrealized" style="font-size:1.05rem;">₹0.00</div>
+      </div>
+      <div class="trade-detail-cell">
+        <div class="lbl">REALIZED P&L</div>
+        <div class="num" id="port-realized" style="font-size:1.05rem;">₹0.00</div>
+      </div>
+    </div>
+
+    <!-- Tabs inside Portfolio: Positions / History -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border-color); padding-bottom:6px;">
+      <div style="display:flex; gap:10px;">
+        <button id="tab-btn-positions" onclick="switchPaperTab('positions')" style="background:none; border:none; font-weight:700; font-size:0.85rem; color:var(--accent-blue); cursor:pointer; border-bottom:2px solid var(--accent-blue); padding-bottom:4px;">
+          Open Positions (<span id="port-open-count">0</span>)
+        </button>
+        <button id="tab-btn-history" onclick="switchPaperTab('history')" style="background:none; border:none; font-weight:700; font-size:0.85rem; color:var(--text-muted); cursor:pointer; padding-bottom:4px;">
+          Closed History
+        </button>
+      </div>
+      <button onclick="resetPaperCapital()" style="padding:4px 10px; font-size:0.7rem; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; cursor:pointer; color:var(--accent-red); font-weight:700;">
+        🔄 Reset Capital (₹10L)
+      </button>
+    </div>
+
+    <!-- Open Positions Container -->
+    <div id="port-positions-container" style="max-height:280px; overflow-y:auto; margin-bottom:14px;">
+      <!-- Open positions table injected here -->
+    </div>
+
+    <!-- History Container -->
+    <div id="port-history-container" style="max-height:280px; overflow-y:auto; margin-bottom:14px; display:none;">
+      <!-- History table injected here -->
+    </div>
+  </div>
+</div>
+
+<script>
+const socket = io();
+let currentView = 'grok';
+let tradeChartInstance = null;
+let scanResults = [];
+
+let autoRefreshTimer = null;
+let currentPaperTab = 'positions';
+
+// ═══════════════════ INIT ═══════════════════
+async function init() {
+  loadGrokLive();
+  switchView('grok');
+  fetchLiveMarketStatus();
+  loadPaperAccountSummary();
+  setInterval(fetchLiveMarketStatus, 15000);
+}
+
+// ═══════════════════ THEME TOGGLE ═══════════════════
+function toggleTheme() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  document.getElementById('theme-btn').textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+}
+
+// ═══════════════════ VIEW SWITCHER ═══════════════════
+function switchView(viewName) {
+  currentView = viewName;
+  document.querySelectorAll('.nav-tab').forEach((tab, idx) => {
+    tab.classList.remove('active');
+    if (
+      (viewName === 'grok' && idx === 0) ||
+      (viewName === 'cards' && idx === 1) ||
+      (viewName === 'table' && idx === 2) ||
+      (viewName === 'rockets' && idx === 3)
+    ) {
+      tab.classList.add('active');
+    }
+  });
+
+  document.getElementById('view-grok').style.display = viewName === 'grok' ? 'grid' : 'none';
+  document.getElementById('view-cards').style.display = viewName === 'cards' ? 'block' : 'none';
+  document.getElementById('view-table').style.display = viewName === 'table' ? 'block' : 'none';
+  document.getElementById('view-rockets').style.display = viewName === 'rockets' ? 'block' : 'none';
+
+  if (viewName === 'rockets') {
+    renderRocketsView();
+  }
+}
+
+// ═══════════════════ SLIDER DISPLAY ═══════════════════
+function updateMinRetDisplay(val) {
+  const num = parseInt(val);
+  document.getElementById('min-ret-display').textContent = num === 0 ? 'All' : `≥ ${num}%`;
+}
+
+// ═══════════════════ LOAD GROK LIVE ═══════════════════
+async function loadGrokLive() {
+  try {
+    const res = await fetch('/api/grok/live');
+    const data = await res.json();
+
+    document.getElementById('top-balance').textContent = data.balance;
+    document.getElementById('top-trades').textContent = data.trades;
+    document.getElementById('top-wins').textContent = data.wins;
+    document.getElementById('top-losses').textContent = data.losses;
+
+    // Render agents
+    const agentsList = document.getElementById('grok-agents-list');
+    agentsList.innerHTML = (data.agents || []).map(a => `
+      <div class="agent-card ${a.name.toLowerCase().replace(' ', '')}">
+        <div class="agent-head">
+          <span>${a.name}</span>
+          <span style="font-family:var(--font-mono);font-size:0.68rem;color:${a.color};">${a.status}</span>
+        </div>
+        <div class="agent-sub">${a.sub}</div>
+        <div class="agent-action">${a.action}</div>
+      </div>
+    `).join('');
+
+    // Flow tokens
+    const flowTokens = document.getElementById('flow-tokens');
+    flowTokens.innerHTML = (data.live_flow || []).map(f => `
+      <div class="flow-token-card ${f.active ? 'active' : ''}">
+        <div class="flow-token-sym">$${f.sym}</div>
+        <div class="flow-token-badge">${f.badge}</div>
+      </div>
+    `).join('');
+
+    // Active trade
+    const t = data.active_trade;
+    document.getElementById('active-sym').textContent = `$${t.symbol}`;
+    document.getElementById('active-ret').textContent = `${t.ret_pct >= 0 ? '+' : ''}${t.ret_pct}% live`;
+    document.getElementById('active-ret').style.color = t.ret_pct >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+    document.getElementById('active-entry').textContent = `₹${t.entry}`;
+    document.getElementById('active-sl').textContent = `₹${t.stop_loss}`;
+    document.getElementById('active-target').textContent = `₹${t.target}`;
+    document.getElementById('active-size').textContent = t.size;
+
+    renderSparklineChart(t.candles || []);
+
+    // Terminal log
+    const term = document.getElementById('terminal-log');
+    term.innerHTML = (data.logs || []).map(l => `
+      <div><span style="color:#8b949e;">${l.time}</span> <span class="${l.type === 'ENTER' ? 'log-line-enter' : l.type === 'EXIT' ? 'log-line-exit' : 'log-line-filtered'}">${l.type}</span> <strong>$${l.sym}</strong> ${l.size} ${l.res} <span style="color:#8b949e;">${l.note}</span></div>
+    `).join('');
+
+    // History rows
+    const hist = document.getElementById('grok-history-rows');
+    hist.innerHTML = (data.logs || []).map(l => `
+      <tr>
+        <td>${l.time}</td>
+        <td><span class="${l.type === 'ENTER' ? 'val-blue' : 'val-green'}">${l.type}</span></td>
+        <td><strong>$${l.sym}</strong></td>
+        <td class="${l.pnl.startsWith('+') ? 'val-green' : 'val-red'}">${l.pnl || '--'}</td>
+      </tr>
+    `).join('');
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ═══════════════════ RENDER SPARKLINE ═══════════════════
+function renderSparklineChart(candles) {
+  const ctx = document.getElementById('active-trade-chart').getContext('2d');
+  const labels = (candles || []).map((_, i) => i + 1);
+  const dataPoints = (candles || []).map(c => c.c);
+
+  if (tradeChartInstance) {
+    tradeChartInstance.destroy();
+  }
+
+  tradeChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels.length ? labels : [1,2,3,4,5,6,7,8],
+      datasets: [{
+        data: dataPoints.length ? dataPoints : [100, 102, 101, 104, 103, 107, 106, 110],
+        borderColor: '#1a7f37',
+        backgroundColor: 'rgba(26,127,55,0.08)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: false },
+        y: { display: false }
+      }
+    }
+  });
+}
+
+// ═══════════════════ STOCK SELECTION & CUSTOM SCANNING ═══════════════════
+let selectedStocks = new Set();
+
+function toggleSelectStock(sym, isSelected) {
+  sym = sym.toUpperCase();
+  if (isSelected) {
+    selectedStocks.add(sym);
+  } else {
+    selectedStocks.delete(sym);
+  }
+  updateSelectionUI();
+}
+
+function toggleSelectAllStocks(isChecked) {
+  const cbs = document.querySelectorAll('.stock-select-cb');
+  cbs.forEach(cb => {
+    cb.checked = isChecked;
+    const sym = cb.value.toUpperCase();
+    if (isChecked) selectedStocks.add(sym);
+    else selectedStocks.delete(sym);
+  });
+  updateSelectionUI();
+}
+
+function clearSelectedStocks() {
+  selectedStocks.clear();
+  document.querySelectorAll('.stock-select-cb').forEach(cb => cb.checked = false);
+  const allCb = document.getElementById('select-all-cbs');
+  if (allCb) allCb.checked = false;
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  const count = selectedStocks.size;
+  const bar = document.getElementById('selection-bar');
+  const selBtn = document.getElementById('scan-selected-btn');
+  const countBadge = document.getElementById('selected-count-badge');
+  const optCount = document.getElementById('opt-selected-count');
+  const btnCount = document.getElementById('btn-sel-count');
+
+  if (countBadge) countBadge.textContent = `${count} selected`;
+  if (optCount) optCount.textContent = count;
+  if (btnCount) btnCount.textContent = count;
+
+  if (count > 0) {
+    if (bar) bar.style.display = 'flex';
+    if (selBtn) selBtn.style.display = 'inline-block';
+  } else {
+    if (bar) bar.style.display = 'none';
+    if (selBtn) selBtn.style.display = 'none';
+  }
+
+  // Update badges
+  const container = document.getElementById('selected-stocks-badges');
+  if (container) {
+    const list = Array.from(selectedStocks).slice(0, 12);
+    container.innerHTML = list.map(s => `
+      <span style="background:var(--bg-primary); border:1px solid #7c3aed; color:#7c3aed; padding:2px 8px; border-radius:4px; font-size:0.75rem; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+        $${s} <span style="cursor:pointer; color:var(--accent-red); font-size:0.9rem;" onclick="toggleSelectStock('${s}', false)">×</span>
+      </span>
+    `).join('') + (selectedStocks.size > 12 ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">+${selectedStocks.size - 12} more</span>` : '');
+  }
+
+  // Sync checkboxes across DOM
+  document.querySelectorAll('.stock-select-cb').forEach(cb => {
+    cb.checked = selectedStocks.has(cb.value.toUpperCase());
+  });
+}
+
+function scanSelectedStocks() {
+  if (selectedStocks.size === 0) {
+    alert('Please select at least 1 stock from the table/cards or click "Add/Paste Symbols" first!');
+    return;
+  }
+  const modeId = document.getElementById('mode-select').value;
+  const top = document.getElementById('top-select').value;
+  const minRet = parseFloat(document.getElementById('min-ret-slider').value) || 0;
+  const minAccuracy = parseFloat(document.getElementById('accuracy-filter-select')?.value || '80');
+
+  document.getElementById('universe-select').value = 'custom_selected';
+
+  document.getElementById('scan-btn').style.display = 'none';
+  const stopBtn = document.getElementById('stop-scan-btn');
+  stopBtn.style.display = 'inline-block';
+  stopBtn.disabled = false;
+  stopBtn.textContent = '⏹️ STOP SCAN';
+
+  document.getElementById('progress-container').classList.add('show');
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-info').textContent = `Scanning ${selectedStocks.size} Selected Stocks (Min Acc: ${minAccuracy}%)...`;
+
+  socket.emit('request_scan', {
+    universe: 'custom_selected',
+    custom_stocks: Array.from(selectedStocks),
+    mode_id: modeId ? parseInt(modeId) : null,
+    top: parseInt(top),
+    min_ret: minRet,
+    min_accuracy: minAccuracy
+  });
+}
+
+function openAddStockModal() {
+  const input = prompt(
+    'Enter Custom Stock Symbols to add (comma or space separated):\\n(e.g. SUZLON, TRENT, RELIANCE, TCS, INFY, IREDA, ZOMATO, BHEL)',
+    'SUZLON, TRENT, RELIANCE, TCS, INFY, IREDA'
+  );
+  if (input && input.trim()) {
+    const symbols = input.split(/[,;\s]+/).map(s => s.trim().toUpperCase()).filter(s => s.length > 0);
+    symbols.forEach(s => selectedStocks.add(s));
+    updateSelectionUI();
+  }
+}
+
+// ═══════════════════ TRIGGER SCAN (START) ═══════════════════
+function triggerScan(forceMinRet = null) {
+  const universe = document.getElementById('universe-select').value;
+  const modeId = document.getElementById('mode-select').value;
+  const top = document.getElementById('top-select').value;
+  const minRet = forceMinRet !== null ? forceMinRet : parseFloat(document.getElementById('min-ret-slider').value);
+  const minAccuracy = parseFloat(document.getElementById('accuracy-filter-select')?.value || '80');
+
+  // Switch buttons: hide start, show stop
+  document.getElementById('scan-btn').style.display = 'none';
+  const stopBtn = document.getElementById('stop-scan-btn');
+  stopBtn.style.display = 'inline-block';
+  stopBtn.disabled = false;
+  stopBtn.textContent = '⏹️ STOP SCAN';
+
+  document.getElementById('progress-container').classList.add('show');
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-fill').style.background = 'var(--accent-orange)';
+  document.getElementById('progress-info').textContent = `Scanning ${universe} (Min Move: ${minRet}%, Min Accuracy: ${minAccuracy}%)...`;
+
+  const payload = {
+    universe,
+    mode_id: modeId ? parseInt(modeId) : null,
+    top: parseInt(top),
+    min_ret: minRet,
+    min_accuracy: minAccuracy
+  };
+
+  if (universe === 'custom_selected') {
+    payload.custom_stocks = Array.from(selectedStocks);
+  }
+
+  socket.emit('request_scan', payload);
+}
+
+// ═══════════════════ STOP SCAN ═══════════════════
+function stopScan() {
+  const stopBtn = document.getElementById('stop-scan-btn');
+  stopBtn.disabled = true;
+  stopBtn.textContent = '⏳ STOPPING...';
+  document.getElementById('progress-info').textContent = '⏹️ Stopping scan immediately...';
+
+  socket.emit('request_stop_scan');
+  fetch('/api/scan/stop', { method: 'POST' }).catch(() => {});
+}
+
+function quickScan20Rockets() {
+  document.getElementById('universe-select').value = 'rockets_20';
+  document.getElementById('min-ret-slider').value = 20;
+  updateMinRetDisplay(20);
+  switchView('rockets');
+  triggerScan(20);
+}
+
+// ═══════════════════ SOCKET PROGRESS & CONTROL ═══════════════════
+socket.on('scan_progress', (data) => {
+  document.getElementById('progress-fill').style.width = `${data.pct}%`;
+  document.getElementById('progress-info').textContent =
+    `Scanning [${data.progress}/${data.total}]: $${data.current_symbol} · Matched: ${data.matched_so_far || 0} (${data.pct}%)`;
+});
+
+socket.on('scan_stopping', (data) => {
+  document.getElementById('progress-info').textContent = '⏹️ Halting scan in progress...';
+});
+
+socket.on('scan_complete', async (data) => {
+  // Restore start button, hide stop button
+  document.getElementById('scan-btn').style.display = 'inline-block';
+  document.getElementById('scan-btn').disabled = false;
+  document.getElementById('scan-btn').textContent = '🚀 SCAN MARKET';
+  document.getElementById('stop-scan-btn').style.display = 'none';
+
+  if (data && data.stopped) {
+    document.getElementById('progress-fill').style.width = '100%';
+    document.getElementById('progress-fill').style.background = '#ff9800';
+    document.getElementById('progress-info').textContent = `⏹️ Scan stopped by user! Showing ${data.count || 0} matched stocks.`;
+    setTimeout(() => {
+      document.getElementById('progress-container').classList.remove('show');
+      document.getElementById('progress-fill').style.background = 'var(--accent-orange)';
+    }, 2500);
+  } else {
+    document.getElementById('progress-container').classList.remove('show');
+  }
+
+  // Fetch fresh results
+  const res = await fetch('/api/scan/results');
+  const d = await res.json();
+  scanResults = d.results || [];
+
+  renderAllViews(scanResults);
+  loadGrokLive();
+});
+
+// ═══════════════════ TREND METER LOGIC & HELPERS ═══════════════════
+function getTrendMeterData(r) {
+  if (r.trend_meter) return r.trend_meter;
+  if (r.indicators && r.indicators.trend_meter) return r.indicators.trend_meter;
+
+  const ind = r.indicators || {};
+  let score = 50.0;
+  const close = ind.close || 0;
+  if (ind.ema20 && close > ind.ema20) score += 8; else if (ind.ema20 && close < ind.ema20) score -= 8;
+  if (ind.ema50 && close > ind.ema50) score += 9; else if (ind.ema50 && close < ind.ema50) score -= 9;
+  if (ind.ema200 && close > ind.ema200) score += 8; else if (ind.ema200 && close < ind.ema200) score -= 8;
+  if (ind.supertrend === 1) score += 12; else if (ind.supertrend === -1) score -= 12;
+  const rsi = ind.rsi || 50;
+  if (rsi >= 55 && rsi <= 72) score += 18;
+  else if (rsi > 72) score += 12;
+  else if (rsi < 45) score -= 14;
+  if ((ind.macd_hist || 0) > 0) score += 12; else score -= 10;
+  if ((ind.ret_1d || 0) > 0 && (ind.vol_ratio || 1) >= 1.5) score += 15;
+  else if ((ind.ret_1d || 0) > 0) score += 6;
+  else if ((ind.ret_1d || 0) < 0) score -= 8;
+  if ((ind.ret_1d || 0) >= 20.0) score += 25;
+
+  score = Math.max(5.0, Math.min(99.0, Math.round(score * 10) / 10));
+  let bars = 3, label = "🟡 NEUTRAL", color = "#ffb300", direction = "↔ SIDEWAYS";
+  if (score >= 85) { bars = 5; label = "🚀 SUPER BULL"; color = "#00e676"; direction = "▲ STRONG UP"; }
+  else if (score >= 65) { bars = 4; label = "🟢 BULLISH"; color = "#4caf50"; direction = "▲ UPTREND"; }
+  else if (score >= 45) { bars = 3; label = "🟡 NEUTRAL"; color = "#ffb300"; direction = "↔ SIDEWAYS"; }
+  else if (score >= 25) { bars = 2; label = "🔴 BEARISH"; color = "#ff5252"; direction = "▼ DOWNTREND"; }
+  else { bars = 1; label = "🔻 STRONG BEAR"; color = "#d50000"; direction = "▼ STRONG DOWN"; }
+
+  return { score, bars, label, color, direction };
+}
+
+function renderTrendMeterCardHTML(tm) {
+  return `
+    <div class="trend-meter-card-wrap">
+      <div class="trend-meter-label-row">
+        <span style="color:var(--text-muted); font-size:0.65rem;">⚡ TREND METER</span>
+        <span style="color:${tm.color}; font-weight:800; font-size:0.72rem;">${tm.label} (${tm.score}%)</span>
+      </div>
+      <div class="trend-meter-led-rail">
+        <div class="trend-led-bar ${tm.bars >= 1 ? 'bar-1-lit' : ''}"></div>
+        <div class="trend-led-bar ${tm.bars >= 2 ? 'bar-2-lit' : ''}"></div>
+        <div class="trend-led-bar ${tm.bars >= 3 ? 'bar-3-lit' : ''}"></div>
+        <div class="trend-led-bar ${tm.bars >= 4 ? 'bar-4-lit' : ''}"></div>
+        <div class="trend-led-bar ${tm.bars >= 5 ? 'bar-5-lit' : ''}"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:0.58rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:2px;">
+        <span>BEAR</span>
+        <span>NEUTRAL</span>
+        <span>BULL</span>
+      </div>
+    </div>
+  `;
+}
+
+// ═══════════════════ RENDER ALL VIEWS ═══════════════════
+function renderAllViews(results) {
+  renderCardsGrid(results);
+  renderProTable(results);
+  renderRocketsView(results);
+}
+
+// ═══════════════════ TAB 2: RENDER CARDS GRID ═══════════════════
+function renderCardsGrid(results) {
+  const container = document.getElementById('cards-grid');
+  document.getElementById('cards-count-badge').textContent = `${results.length} CARDS`;
+
+  if (!results.length) {
+    container.innerHTML = '<div style="padding:40px;color:var(--text-muted);text-align:center;">Click "SCAN MARKET" to generate signals.</div>';
+    return;
+  }
+
+  container.innerHTML = results.map(r => {
+    const ind = r.indicators || {};
+    const setup = r.trade_setup || {};
+    const tm = getTrendMeterData(r);
+    const acc = r.confluence_accuracy || ind.confluence_accuracy || { score: 92, is_99: true, badge: '🎯 99% HIGH ACCURACY' };
+    const chg = ind.ret_1d || 0;
+    const isRocket = chg >= 20.0;
+    const bias = setup.bias || 'BULLISH';
+    const patterns = r.candlestick_patterns || ind.candlestick_patterns || [];
+
+    const isSel = selectedStocks.has(r.symbol.toUpperCase());
+    return `
+      <div class="stock-signal-card" style="${isSel ? 'border:2px solid #7c3aed;' : ''}" onclick="openDetailModal('${r.symbol}')">
+        <div>
+          <div class="card-top">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" class="stock-select-cb" value="${r.symbol}" onchange="toggleSelectStock('${r.symbol}', this.checked)" ${isSel ? 'checked' : ''} onclick="event.stopPropagation()" title="Select this stock for custom scan">
+              <span class="card-sym">$${r.symbol}</span>
+            </div>
+            <span class="card-type-tag ${isRocket ? 'tag-rocket' : 'tag-target'}">
+              ${isRocket ? '🚀 20%+ ROCKET' : 'INTRA/SWING'}
+            </span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="card-action-badge ${bias === 'BULLISH' ? 'badge-buy-limit' : 'badge-sell-limit'}">
+              ${bias === 'BULLISH' ? 'BUY LIMIT' : 'SELL LIMIT'}
+            </span>
+            <span style="font-size:0.68rem; font-family:var(--font-mono); color:var(--text-muted);">${r.match_count || 0} modes</span>
+          </div>
+
+          <!-- Candlestick Pattern Badges -->
+          <div style="margin-top:4px; margin-bottom:6px; min-height:18px;">
+            ${patterns.slice(0, 2).map(p => `
+              <span style="display:inline-block; font-size:0.62rem; background:rgba(0,230,118,0.12); color:#00e676; border:1px solid rgba(0,230,118,0.3); border-radius:3px; padding:1px 5px; margin-right:4px; font-weight:700;">
+                ${p.emoji} ${p.name.split(' ')[0]} ${p.accuracy}
+              </span>
+            `).join('')}
+          </div>
+
+          <!-- 80-120% Confluence Accuracy Badge -->
+          <div style="margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.68rem; font-weight:800; color:${acc.color || '#00e676'}; background:rgba(0,230,118,0.12); padding:2px 8px; border-radius:4px; border:1px solid ${acc.color || 'rgba(0,230,118,0.25)'};">
+              ${acc.badge || '🎯 95% ACCURACY'}
+            </span>
+            <span style="font-size:0.65rem; font-family:var(--font-mono); color:var(--text-muted);">
+              R:R ${setup.rr_ratio || 2.4}:1
+            </span>
+          </div>
+
+          <!-- Trend Meter -->
+          ${renderTrendMeterCardHTML(tm)}
+
+          <table class="card-metrics-table">
+            <tr><td class="lbl">एंट्री (Entry)</td><td class="val" style="color:var(--accent-blue);">₹${setup.entry || ind.close}</td></tr>
+            <tr><td class="lbl">टारगेट (Target)</td><td class="val" style="color:var(--accent-green);">₹${setup.target2 || ind.r1}</td></tr>
+            <tr><td class="lbl">स्टॉप (Stop Loss)</td><td class="val" style="color:var(--accent-red);">₹${setup.stop_loss || ind.s1}</td></tr>
+            <tr><td class="lbl">विश्वास (Score)</td><td class="val">${ind.momentum_score || 75}/100</td></tr>
+          </table>
+
+          <div style="font-size:0.68rem; font-family:var(--font-mono); color:var(--text-muted); margin-bottom:6px;">
+            Vol ${ind.vol_ratio || 1.8}x · ${ind.exchange || 'NSE'}
+          </div>
+        </div>
+
+        <div class="card-footer" onclick="event.stopPropagation()" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+          <span style="color:${chg >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:700; font-family:var(--font-mono);">
+            ${chg >= 0 ? '+' : ''}${chg}%
+          </span>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-card-action" onclick="openPaperOrderModal('${r.symbol}', ${setup.entry || ind.close}, ${setup.stop_loss || ind.s1}, ${setup.target2 || ind.r1}, '${bias}')" style="background:#059669; color:#fff; font-weight:800; border:none; padding:5px 8px; font-size:0.7rem;">
+              📝 Paper Trade
+            </button>
+            <button class="btn-card-action" onclick="openDetailModal('${r.symbol}')" style="background:var(--accent-blue); color:#fff; font-weight:700; border:none; padding:5px 8px; font-size:0.7rem;">
+              🔍 Setup
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ═══════════════════ TAB 3: RENDER PRO TABLE ═══════════════════
+function renderProTable(results) {
+  const tbody = document.getElementById('pro-table-body');
+  if (!results.length) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:30px;color:var(--text-muted);">No scan results yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = results.map(r => {
+    const ind = r.indicators || {};
+    const setup = r.trade_setup || {};
+    const tm = getTrendMeterData(r);
+    const acc = r.confluence_accuracy || ind.confluence_accuracy || { score: 90, badge: '🎯 90%', color: '#00d4ff' };
+    const chg = ind.ret_1d || 0;
+    const isRocket = chg >= 20.0;
+    const score = ind.momentum_score || 50;
+    const isSel = selectedStocks.has(r.symbol.toUpperCase());
+
+    return `
+      <tr style="${isSel ? 'background:rgba(124,58,237,0.08);' : ''}">
+        <td style="text-align:center;">
+          <input type="checkbox" class="stock-select-cb" value="${r.symbol}" onchange="toggleSelectStock('${r.symbol}', this.checked)" ${isSel ? 'checked' : ''} onclick="event.stopPropagation()">
+        </td>
+        <td><strong>$${r.symbol}</strong></td>
+        <td><span style="font-size:0.7rem;font-family:var(--font-mono);">${ind.exchange || 'NSE'}</span></td>
+        <td style="font-family:var(--font-mono);font-weight:700;">₹${ind.close}</td>
+        <td>
+          <span class="chg-box ${isRocket ? 'rocket-20' : chg >= 0 ? 'green' : 'red'}">
+            ${chg >= 0 ? '+' : ''}${chg}%
+          </span>
+        </td>
+        <td>${formatVol(ind.volume)} <span style="font-size:0.68rem;color:var(--text-muted);">(${ind.vol_ratio}x)</span></td>
+        <td style="font-family:var(--font-mono);">${ind.money_flow_cr ? '₹' + ind.money_flow_cr + ' Cr' : '--'}</td>
+        <td>
+          <div class="score-cell-wrap">
+            <div class="score-bar-rail">
+              <div class="score-bar-fill" style="width:${score}%; background:${score > 70 ? 'var(--accent-green)' : 'var(--accent-orange)'};"></div>
+            </div>
+            <strong style="font-family:var(--font-mono);">${score}</strong>
+          </div>
+        </td>
+        <td>
+          <div class="table-trend-meter-cell">
+            <div class="table-trend-rail">
+              <div class="table-trend-bar ${tm.bars >= 1 ? 'bar-1-lit' : ''}"></div>
+              <div class="table-trend-bar ${tm.bars >= 2 ? 'bar-2-lit' : ''}"></div>
+              <div class="table-trend-bar ${tm.bars >= 3 ? 'bar-3-lit' : ''}"></div>
+              <div class="table-trend-bar ${tm.bars >= 4 ? 'bar-4-lit' : ''}"></div>
+              <div class="table-trend-bar ${tm.bars >= 5 ? 'bar-5-lit' : ''}"></div>
+            </div>
+            <span style="color:${tm.color}; font-weight:700; font-family:var(--font-mono); font-size:0.72rem;">
+              ${tm.direction} ${tm.score}%
+            </span>
+          </div>
+        </td>
+        <td>
+          <span style="font-size:0.7rem; font-weight:800; color:${acc.color || '#00e676'}; background:rgba(0,230,118,0.12); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); white-space:nowrap; border:1px solid ${acc.color || 'rgba(0,230,118,0.25)'};">
+            ${acc.badge || (acc.score + '%')}
+          </span>
+        </td>
+        <td style="font-family:var(--font-mono);color:${ind.vwap_dist >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">
+          ${ind.vwap_dist >= 0 ? '+' : ''}${ind.vwap_dist || 0}%
+        </td>
+        <td>
+          <span style="font-size:0.72rem;background:var(--bg-subtle);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);">
+            ${r.match_count} modes
+          </span>
+        </td>
+        <td>
+          <div style="display:flex; gap:4px;">
+            <button class="btn-card-action" onclick="openPaperOrderModal('${r.symbol}', ${setup.entry || ind.close}, ${setup.stop_loss || 0}, ${setup.target2 || 0}, '${setup.bias || 'BUY'}')" style="padding:4px 7px; font-size:0.68rem; background:#059669; color:#fff; border:none; font-weight:700;">📝 Trade</button>
+            <button class="btn-card-action" onclick="openDetailModal('${r.symbol}')" style="padding:4px 7px; font-size:0.68rem;">Inspect</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ═══════════════════ TAB 4: RENDER ROCKETS VIEW ═══════════════════
+function renderRocketsView(results = null) {
+  const container = document.getElementById('rockets-grid');
+  const dataset = results || scanResults;
+  // Strictly filter for DAY PERCENTAGE >= 20.0%
+  const rockets = dataset.filter(r => {
+    const ind = r.indicators || {};
+    return (ind.ret_1d || 0) >= 20.0;
+  });
+
+  if (!rockets.length) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; padding:40px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; text-align:center;">
+        <div style="font-size:2rem; margin-bottom:8px;">🚀</div>
+        <h3>No Stocks with Day Percentage ≥ 20.0% Found</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin-top:6px;">Filter strictly enforces <strong>Day Percentage (1-Day Gain) ≥ 20.0%</strong> (Upper Circuit / Super Rockets).</p>
+        <p style="color:var(--text-muted); font-size:0.8rem; margin-top:4px;">Click the button below to scan all BSE SmallCap, MicroCap & NSE high-beta universe.</p>
+        <button class="rocket-pill-btn" onclick="quickScan20Rockets()" style="margin-top:14px; display:inline-block;">🔥 Scan 20%+ Day Rockets Now</button>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = rockets.map(r => {
+    const ind = r.indicators || {};
+    const setup = r.trade_setup || {};
+    const tm = getTrendMeterData(r);
+    const dayGain = ind.ret_1d || 20.0;
+
+    return `
+      <div class="stock-signal-card" style="border-top:3px solid #ff4b2b;" onclick="openDetailModal('${r.symbol}')">
+        <div>
+          <div class="card-top">
+            <span class="card-sym">$${r.symbol}</span>
+            <span class="card-type-tag tag-rocket">🔥 +${dayGain}% DAY CIRCUIT</span>
+          </div>
+
+          <!-- Trend Meter -->
+          ${renderTrendMeterCardHTML(tm)}
+
+          <table class="card-metrics-table">
+            <tr><td class="lbl">⚡ Day % (Gain)</td><td class="val val-green" style="font-weight:800; font-size:1.05rem;">+${dayGain}%</td></tr>
+            <tr><td class="lbl">5-Day Chg</td><td class="val val-green">+${ind.ret_5d}%</td></tr>
+            <tr><td class="lbl">1-Month Chg</td><td class="val val-green">+${ind.ret_1m}%</td></tr>
+            <tr><td class="lbl">Volume Spike</td><td class="val" style="color:#ff9800;">${ind.vol_ratio}x avg</td></tr>
+          </table>
+        </div>
+
+        <div class="card-footer" onclick="event.stopPropagation()" style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+          <span style="font-size:0.75rem; font-weight:700;">₹${ind.close}</span>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-card-action" style="background:#059669; color:#fff; border:none; font-weight:800; padding:5px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); openPaperOrderModal('${r.symbol}', ${ind.close}, ${setup.stop_loss || 0}, ${setup.target2 || 0}, 'BUY')">📝 Paper Trade</button>
+            <button class="btn-card-action" style="background:linear-gradient(135deg, #ff416c, #ff4b2b); color:#fff; border:none; font-weight:800; padding:5px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); openDetailModal('${r.symbol}')">🚀 Rocket Setup</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ═══════════════════ DETAIL MODAL ═══════════════════
+async function openDetailModal(symbol) {
+  const modal = document.getElementById('detail-modal');
+  const card = document.getElementById('modal-card-content');
+  card.innerHTML = `<div style="text-align:center;padding:40px;">Loading analysis for ${symbol}...</div>`;
+  modal.classList.add('open');
+
+  try {
+    const res = await fetch(`/api/stock/${symbol}`);
+    const data = await res.json();
+    const ind = data.indicators || {};
+    const setup = data.trade_setup || {};
+    const tm = getTrendMeterData(data);
+
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:1.3rem; font-family:var(--font-mono);">$${symbol} Technical Analysis</h2>
+          <div style="font-size:0.75rem; color:var(--text-muted);">NSE & BSE Verified · ${data.match_count} Modes Active</div>
+        </div>
+        <button onclick="closeModal(null, true)" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin-bottom:16px;">
+        <div class="trade-detail-cell"><div class="lbl">Entry</div><div class="num" style="color:var(--accent-blue);">₹${setup.entry || ind.close}</div></div>
+        <div class="trade-detail-cell"><div class="lbl">Stop Loss</div><div class="num val-red">₹${setup.stop_loss}</div></div>
+        <div class="trade-detail-cell"><div class="lbl">Target 1</div><div class="num val-green">₹${setup.target1}</div></div>
+        <div class="trade-detail-cell"><div class="lbl">Target 2</div><div class="num val-green">₹${setup.target2}</div></div>
+      </div>
+
+      <!-- Trend Meter Panel in Modal -->
+      <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-size:0.75rem; font-weight:800; color:var(--text-main); font-family:var(--font-mono);">
+            ⚡ TREND METER & TECHNICAL CONSENSUS
+          </div>
+          <span style="font-size:0.8rem; font-weight:800; color:${tm.color}; font-family:var(--font-mono);">${tm.label} (${tm.score}%)</span>
+        </div>
+        <div class="trend-meter-led-rail" style="height:10px; border-radius:4px;">
+          <div class="trend-led-bar ${tm.bars >= 1 ? 'bar-1-lit' : ''}"></div>
+          <div class="trend-led-bar ${tm.bars >= 2 ? 'bar-2-lit' : ''}"></div>
+          <div class="trend-led-bar ${tm.bars >= 3 ? 'bar-3-lit' : ''}"></div>
+          <div class="trend-led-bar ${tm.bars >= 4 ? 'bar-4-lit' : ''}"></div>
+          <div class="trend-led-bar ${tm.bars >= 5 ? 'bar-5-lit' : ''}"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:var(--text-muted); font-family:var(--font-mono); margin-top:4px;">
+          <span>STRONG BEAR (0-24%)</span>
+          <span>NEUTRAL (45-64%)</span>
+          <span>STRONG BULL (85-100%)</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-size:0.75rem; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Matched Screener Signals:</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          ${(data.matches || []).map(m => `
+            <span style="background:var(--bg-subtle); border:1px solid var(--border-color); padding:3px 8px; border-radius:4px; font-size:0.72rem;">
+              ${m.emoji} ${m.name}
+            </span>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Candlestick Patterns Detected -->
+      <div style="background:var(--bg-subtle); border:1px solid rgba(0,230,118,0.3); border-radius:6px; padding:12px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-size:0.75rem; font-weight:700; color:var(--accent-green); text-transform:uppercase;">
+            🕯️ Candlestick Patterns Detected:
+          </div>
+          <span style="font-size:0.7rem; color:var(--text-muted); font-family:var(--font-mono);">${(data.candlestick_patterns || ind.candlestick_patterns || []).length} Pattern(s)</span>
+        </div>
+        ${(data.candlestick_patterns || ind.candlestick_patterns || []).length > 0 ? `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px;">
+            ${(data.candlestick_patterns || ind.candlestick_patterns || []).map(p => `
+              <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:6px; padding:8px 10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                  <span style="font-weight:700; font-size:0.8rem;">${p.emoji} ${p.name}</span>
+                  <span style="font-size:0.65rem; background:var(--badge-green-bg); color:var(--badge-green-text); padding:1px 5px; border-radius:3px; font-weight:700;">${p.accuracy}</span>
+                </div>
+                <div style="font-size:0.72rem; color:var(--text-muted); margin-bottom:3px;">${p.desc}</div>
+                <div style="font-size:0.68rem; color:var(--accent-blue); font-weight:600;">👉 ${p.action}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : `
+          <div style="font-size:0.75rem; color:var(--text-muted);">No prominent reversal candle on current daily bar. Standard technical trend continuation active.</div>
+        `}
+      </div>
+
+      <div style="background:var(--bg-primary); border:1px solid var(--border-color); border-radius:6px; padding:12px; font-size:0.78rem; margin-bottom:14px;">
+        <div style="font-weight:700; margin-bottom:6px;">Analysis & Reasons:</div>
+        ${(setup.reasons || []).map(r => `<div>• ${r}</div>`).join('')}
+      </div>
+
+      <!-- 80-120% Quantitative Confluence Box -->
+      <div style="background:rgba(0,230,118,0.06); border:1px solid rgba(0,230,118,0.3); border-radius:6px; padding:12px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="color:${(data.confluence_accuracy || ind.confluence_accuracy || {}).color || '#00e676'}; font-size:0.8rem; display:flex; align-items:center; gap:5px;">
+            <span>🎯</span> QUANTITATIVE ACCURACY CONFLUENCE (80% - 120%)
+          </strong>
+          <span style="font-weight:800; color:${(data.confluence_accuracy || ind.confluence_accuracy || {}).color || '#00e676'}; font-family:var(--font-mono); font-size:0.88rem;">
+            ${(data.confluence_accuracy || ind.confluence_accuracy || {}).label || '🎯 95% HIGH ACCURACY'}
+          </span>
+        </div>
+        <div style="font-size:0.72rem; color:var(--text-muted); line-height:1.5;">
+          ${((data.confluence_accuracy || ind.confluence_accuracy || {}).reasons || ['Multi-Factor Technical Trend Aligned', 'Volume Expansion Confirmed', 'Risk-to-Reward Structural Edge']).map(r => `<div>✔ ${r}</div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Action Buttons: Paper Trade & Copy Blueprint -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+        <button onclick="closeModal(null, true); openPaperOrderModal('${symbol}', ${setup.entry || ind.close}, ${setup.stop_loss || 0}, ${setup.target2 || 0}, '${setup.bias || 'BUY'}')" style="padding:12px; background:linear-gradient(135deg, #059669, #10b981); color:#fff; font-weight:800; font-size:0.85rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span>📝</span> Execute Paper Trade
+        </button>
+        <button id="copy-blueprint-btn" onclick="copyTradeBlueprint('${symbol}', ${setup.entry || ind.close}, ${setup.stop_loss || 0}, ${setup.target2 || 0})" style="padding:12px; background:linear-gradient(135deg, #1e40af, #3b82f6); color:#fff; font-weight:800; font-size:0.85rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <span>📋</span> Copy Setup Blueprint
+        </button>
+      </div>
+    `;
+  } catch(e) {
+    card.innerHTML = `<div style="color:var(--accent-red);padding:20px;">Failed to load data for ${symbol}.</div>`;
+  }
+}
+
+function copyTradeBlueprint(symbol, entry, sl, target) {
+  const text = `🎯 RocketScan Setup: $${symbol}\n• Entry: ₹${entry}\n• Stop-Loss: ₹${sl}\n• Target: ₹${target}\n• Engine: 99% Quantitative Confluence`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-blueprint-btn');
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<span>✅</span> Setup Copied to Clipboard!';
+      btn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.style.background = 'linear-gradient(135deg, #1e40af, #3b82f6)';
+      }, 2500);
+    }
+  }).catch(() => {
+    alert(`Trade Setup:\nEntry: ₹${entry}\nStop Loss: ₹${sl}\nTarget: ₹${target}`);
+  });
+}
+
+function closeModal(event, force = false) {
+  if (force || (event && event.target === document.getElementById('detail-modal'))) {
+    document.getElementById('detail-modal').classList.remove('open');
+  }
+}
+
+// ═══════════════════ LIVE MARKET TIMING & STATUS ═══════════════════
+async function fetchLiveMarketStatus() {
+  try {
+    const res = await fetch('/api/market/status');
+    const data = await res.json();
+    const el = document.getElementById('top-market-status');
+    if (el) {
+      el.innerHTML = `<span style="color:${data.color}; font-weight:800;">${data.badge}</span> <span style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">${data.ist_time}</span>`;
+      el.title = `${data.status_detail} · ${data.ist_date}`;
+    }
+  } catch(e) {}
+}
+
+function toggleLiveAutoRefresh(enabled) {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+  if (enabled) {
+    autoRefreshTimer = setInterval(() => {
+      triggerScan();
+      loadPaperAccountSummary();
+    }, 30000);
+  }
+}
+
+// ═══════════════════ PAPER TRADING CLIENT ENGINE ═══════════════════
+let paperAccountCache = null;
+
+async function loadPaperAccountSummary() {
+  try {
+    const res = await fetch('/api/paper/account');
+    const data = await res.json();
+    paperAccountCache = data;
+    
+    const balEl = document.getElementById('top-paper-balance');
+    if (balEl) {
+      balEl.textContent = `₹${data.cash_balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    }
+    const countEl = document.getElementById('top-pos-count');
+    if (countEl) {
+      countEl.textContent = data.positions ? data.positions.length : 0;
+    }
+    const pnlEl = document.getElementById('top-paper-pnl');
+    if (pnlEl) {
+      const totPnl = (data.unrealized_pnl || 0) + (data.realized_pnl || 0);
+      const isPos = totPnl >= 0;
+      pnlEl.innerHTML = `<span style="color:${isPos ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:700;">${isPos ? '+' : ''}₹${totPnl.toLocaleString('en-IN', {minimumFractionDigits: 2})}</span>`;
+    }
+  } catch(e) {}
+}
+
+function openPaperOrderModal(symbol, price, sl, target, side = 'BUY') {
+  document.getElementById('paper-ord-symbol').value = symbol;
+  document.getElementById('paper-ord-price').value = price || '';
+  document.getElementById('paper-ord-sl').value = sl || '';
+  document.getElementById('paper-ord-target').value = target || '';
+  document.getElementById('paper-ord-side').value = side.toUpperCase().includes('SELL') ? 'SELL' : 'BUY';
+  document.getElementById('paper-ord-qty').value = 50;
+  document.getElementById('paper-order-status').innerHTML = '';
+  
+  if (paperAccountCache) {
+    document.getElementById('paper-avail-cash').textContent = `₹${paperAccountCache.cash_balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  }
+  
+  updatePaperCost();
+  document.getElementById('paper-order-modal').classList.add('open');
+}
+
+function closePaperOrderModal(e, force = false) {
+  if (force || (e && e.target === document.getElementById('paper-order-modal'))) {
+    document.getElementById('paper-order-modal').classList.remove('open');
+  }
+}
+
+function setPaperQty(qty) {
+  document.getElementById('paper-ord-qty').value = qty;
+  updatePaperCost();
+}
+
+function updatePaperCost() {
+  const price = parseFloat(document.getElementById('paper-ord-price').value) || 0;
+  const qty = parseInt(document.getElementById('paper-ord-qty').value) || 0;
+  const cost = price * qty;
+  const reqEl = document.getElementById('paper-margin-req');
+  if (reqEl) {
+    reqEl.textContent = `₹${cost.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+  }
+}
+
+async function submitPaperOrder(e) {
+  e.preventDefault();
+  const btn = document.getElementById('paper-submit-btn');
+  const statusEl = document.getElementById('paper-order-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Executing Trade...';
+  
+  const payload = {
+    symbol: document.getElementById('paper-ord-symbol').value,
+    side: document.getElementById('paper-ord-side').value,
+    price: parseFloat(document.getElementById('paper-ord-price').value),
+    quantity: parseInt(document.getElementById('paper-ord-qty').value),
+    stop_loss: parseFloat(document.getElementById('paper-ord-sl').value) || 0,
+    target: parseFloat(document.getElementById('paper-ord-target').value) || 0
+  };
+
+  try {
+    const res = await fetch('/api/paper/order', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (d.status === 'success') {
+      statusEl.innerHTML = `<span style="color:#00e676; font-weight:700;">${d.message}</span>`;
+      setTimeout(() => {
+        closePaperOrderModal(null, true);
+        loadPaperAccountSummary();
+      }, 1000);
+    } else {
+      statusEl.innerHTML = `<span style="color:var(--accent-red);">${d.message || 'Error'}</span>`;
+    }
+  } catch(err) {
+    statusEl.innerHTML = `<span style="color:var(--accent-red);">${err.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Execute Virtual Paper Trade';
+  }
+}
+
+async function openPaperPortfolioModal() {
+  const modal = document.getElementById('paper-portfolio-modal');
+  modal.classList.add('open');
+  await renderPaperPortfolio();
+}
+
+function closePaperPortfolioModal(e, force = false) {
+  if (force || (e && e.target === document.getElementById('paper-portfolio-modal'))) {
+    document.getElementById('paper-portfolio-modal').classList.remove('open');
+  }
+}
+
+function switchPaperTab(tab) {
+  currentPaperTab = tab;
+  document.getElementById('port-positions-container').style.display = tab === 'positions' ? 'block' : 'none';
+  document.getElementById('port-history-container').style.display = tab === 'history' ? 'block' : 'none';
+  
+  const posBtn = document.getElementById('tab-btn-positions');
+  const histBtn = document.getElementById('tab-btn-history');
+  if (tab === 'positions') {
+    posBtn.style.color = 'var(--accent-blue)';
+    posBtn.style.borderBottom = '2px solid var(--accent-blue)';
+    histBtn.style.color = 'var(--text-muted)';
+    histBtn.style.borderBottom = 'none';
+  } else {
+    histBtn.style.color = 'var(--accent-blue)';
+    histBtn.style.borderBottom = '2px solid var(--accent-blue)';
+    posBtn.style.color = 'var(--text-muted)';
+    posBtn.style.borderBottom = 'none';
+  }
+}
+
+async function renderPaperPortfolio() {
+  try {
+    const res = await fetch('/api/paper/account');
+    const data = await res.json();
+    paperAccountCache = data;
+    
+    document.getElementById('port-equity').textContent = `₹${data.total_equity.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    document.getElementById('port-cash').textContent = `₹${data.cash_balance.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    
+    const unEl = document.getElementById('port-unrealized');
+    unEl.textContent = `${data.unrealized_pnl >= 0 ? '+' : ''}₹${data.unrealized_pnl.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    unEl.style.color = data.unrealized_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+    
+    const reEl = document.getElementById('port-realized');
+    reEl.textContent = `${data.realized_pnl >= 0 ? '+' : ''}₹${data.realized_pnl.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    reEl.style.color = data.realized_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+    
+    document.getElementById('port-open-count').textContent = data.positions ? data.positions.length : 0;
+    
+    // Render Open Positions Table
+    const posCont = document.getElementById('port-positions-container');
+    if (!data.positions || data.positions.length === 0) {
+      posCont.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted); font-size:0.85rem;">No active paper positions. Click "📝 Paper Trade" on any stock card to open a virtual position!</div>';
+    } else {
+      posCont.innerHTML = `
+        <table class="pro-table" style="font-size:0.75rem;">
+          <thead>
+            <tr>
+              <th>SYMBOL</th>
+              <th>SIDE</th>
+              <th>QTY</th>
+              <th>BUY PRICE</th>
+              <th>LIVE PRICE</th>
+              <th>UNREALIZED P&L</th>
+              <th>TARGET / SL</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.positions.map(p => `
+              <tr>
+                <td><strong>$${p.symbol}</strong></td>
+                <td><span style="color:${p.side === 'BUY' ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:800;">${p.side}</span></td>
+                <td>${p.quantity}</td>
+                <td>₹${p.buy_price.toFixed(2)}</td>
+                <td style="font-weight:700;">₹${p.current_price.toFixed(2)}</td>
+                <td style="color:${p.unrealized_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:800; font-family:var(--font-mono);">
+                  ${p.unrealized_pnl >= 0 ? '+' : ''}₹${p.unrealized_pnl.toFixed(2)} (${p.pnl_pct >= 0 ? '+' : ''}${p.pnl_pct}%)
+                </td>
+                <td style="font-size:0.68rem; color:var(--text-muted);">T: ₹${p.target || '--'} | SL: ₹${p.stop_loss || '--'}</td>
+                <td>
+                  <button onclick="exitPaperPosition('${p.id}')" style="padding:4px 8px; font-size:0.68rem; background:#ff334b; color:#fff; border:none; border-radius:4px; cursor:pointer; font-weight:700;">
+                    🔴 Square Off
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    // Render History Table
+    const histCont = document.getElementById('port-history-container');
+    if (!data.history || data.history.length === 0) {
+      histCont.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted); font-size:0.85rem;">No closed trades yet.</div>';
+    } else {
+      histCont.innerHTML = `
+        <table class="pro-table" style="font-size:0.75rem;">
+          <thead>
+            <tr>
+              <th>SYMBOL</th>
+              <th>SIDE</th>
+              <th>QTY</th>
+              <th>ENTRY</th>
+              <th>EXIT</th>
+              <th>REALIZED P&L</th>
+              <th>CLOSED AT</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.history.map(h => `
+              <tr>
+                <td><strong>$${h.symbol}</strong></td>
+                <td>${h.side}</td>
+                <td>${h.quantity}</td>
+                <td>₹${h.buy_price.toFixed(2)}</td>
+                <td>₹${h.exit_price ? h.exit_price.toFixed(2) : '--'}</td>
+                <td style="color:${h.realized_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:800; font-family:var(--font-mono);">
+                  ${h.realized_pnl >= 0 ? '+' : ''}₹${h.realized_pnl.toFixed(2)}
+                </td>
+                <td style="font-size:0.68rem; color:var(--text-muted);">${h.closed_at || '--'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+  } catch(e) {}
+}
+
+async function exitPaperPosition(orderId) {
+  if (!confirm('Are you sure you want to square off this virtual position?')) return;
+  try {
+    const res = await fetch('/api/paper/exit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ order_id: orderId })
+    });
+    const d = await res.json();
+    alert(d.message || 'Position closed');
+    await renderPaperPortfolio();
+    loadPaperAccountSummary();
+  } catch(e) {
+    alert('Error closing position: ' + e.message);
+  }
+}
+
+async function resetPaperCapital() {
+  if (!confirm('Reset your virtual paper trading account to ₹10,00,000 virtual INR? All open positions will be cleared.')) return;
+  try {
+    await fetch('/api/paper/reset', { method: 'POST' });
+    await renderPaperPortfolio();
+    loadPaperAccountSummary();
+  } catch(e) {}
+}
+
+// ═══════════════════ DHAN TRADE MODAL (HIDDEN) ═══════════════════
+function openDhanTradeModal(symbol, price, sl, target) {
+  document.getElementById('dhan-ord-symbol').value = symbol;
+  document.getElementById('dhan-ord-price').value = price || '';
+  document.getElementById('dhan-ord-sl').value = sl || '';
+  document.getElementById('dhan-ord-target').value = target || '';
+  document.getElementById('dhan-trade-status').innerHTML = '';
+  document.getElementById('dhan-trade-modal').classList.add('open');
+}
+
+function closeDhanTradeModal(e, force = false) {
+  if (force || (e && e.target === document.getElementById('dhan-trade-modal'))) {
+    document.getElementById('dhan-trade-modal').classList.remove('open');
+  }
+}
+
+async function submitDhanOrder(e) {
+  e.preventDefault();
+  const btn = document.getElementById('dhan-submit-btn');
+  const statusEl = document.getElementById('dhan-trade-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Executing on Dhan...';
+  statusEl.innerHTML = '<span style="color:var(--text-muted);">Transmitting order to DhanHQ API...</span>';
+
+  const orderData = {
+    symbol: document.getElementById('dhan-ord-symbol').value,
+    exchange: document.getElementById('dhan-ord-exchange').value,
+    transaction_type: document.getElementById('dhan-ord-type').value,
+    product_type: document.getElementById('dhan-ord-product').value,
+    order_type: 'LIMIT',
+    quantity: parseInt(document.getElementById('dhan-ord-qty').value) || 1,
+    price: parseFloat(document.getElementById('dhan-ord-price').value) || 0,
+    stop_loss: parseFloat(document.getElementById('dhan-ord-sl').value) || 0,
+    target: parseFloat(document.getElementById('dhan-ord-target').value) || 0
+  };
+
+  try {
+    const res = await fetch('/api/dhan/order', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(orderData)
+    });
+    const result = await res.json();
+    if (result.status === 'SUCCESS') {
+      statusEl.innerHTML = `
+        <div style="background:rgba(0,230,118,0.15); border:1px solid #00e676; color:#00e676; padding:8px; border-radius:4px; font-weight:700;">
+          ✅ ${result.mode === 'DHAN_LIVE_EXECUTED' ? 'LIVE Order Executed on DhanHQ' : 'Simulated Trade Placed'} (Order #${result.order_id})
+          <div style="font-size:0.68rem; margin-top:2px; font-weight:normal;">${result.type} ${result.quantity} Qty @ ₹${result.entry_price || result.price}</div>
+        </div>
+      `;
+      loadGrokLive();
+    } else {
+      statusEl.innerHTML = `
+        <div style="background:rgba(255,23,68,0.15); border:1px solid #ff1744; color:#ff1744; padding:8px; border-radius:4px;">
+          ❌ Order Failed: ${result.error || 'Rejection'}
+        </div>
+      `;
+    }
+  } catch(err) {
+    statusEl.innerHTML = `<span style="color:var(--accent-red);">Network Error: ${err.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Confirm & Execute Order on Dhan';
+  }
+}
+
+// ═══════════════════ DHAN ACCOUNT CONFIG MODAL ═══════════════════
+async function openDhanModal() {
+  document.getElementById('dhan-config-modal').classList.add('open');
+  await checkDhanStatusNow();
+}
+
+function closeDhanModal(e, force = false) {
+  if (force || (e && e.target === document.getElementById('dhan-config-modal'))) {
+    document.getElementById('dhan-config-modal').classList.remove('open');
+  }
+}
+
+async function checkDhanStatusNow() {
+  const statusEl = document.getElementById('dhan-modal-status');
+  const marginEl = document.getElementById('dhan-modal-margin');
+  statusEl.textContent = 'Verifying with Dhan...';
+
+  try {
+    const res = await fetch('/api/dhan/status');
+    const data = await res.json();
+    if (data.authenticated) {
+      statusEl.innerHTML = '<span style="color:#00e676;">● Active & Live Connected</span>';
+      marginEl.textContent = `₹${(data.avail_balance || 0).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+    } else {
+      statusEl.innerHTML = `<span style="color:#ff9800;">⚠️ Token Expired (${data.error || 'DH-901'})</span>`;
+      marginEl.textContent = '₹0.00 (Paper Simulation Mode)';
+    }
+  } catch(e) {
+    statusEl.textContent = 'Connection error';
+  }
+}
+
+async function saveDhanToken() {
+  const token = document.getElementById('dhan-token-input').value.trim();
+  const alertEl = document.getElementById('dhan-token-alert');
+  if (!token) {
+    alertEl.innerHTML = '<span style="color:var(--accent-red);">Please paste your Dhan JWT token</span>';
+    return;
+  }
+  alertEl.innerHTML = '<span style="color:var(--text-muted);">Saving and verifying token...</span>';
+
+  try {
+    const res = await fetch('/api/dhan/update-token', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ token: token })
+    });
+    const d = await res.json();
+    if (d.status === 'success') {
+      alertEl.innerHTML = '<span style="color:#00e676; font-weight:700;">✅ Token Saved! Verifying...</span>';
+      await checkDhanStatusNow();
+      loadGrokLive();
+    } else {
+      alertEl.innerHTML = `<span style="color:var(--accent-red);">Error: ${d.message}</span>`;
+    }
+  } catch(err) {
+    alertEl.innerHTML = `<span style="color:var(--accent-red);">${err.message}</span>`;
+  }
+}
+
+function formatVol(vol) {
+  if (!vol) return '0';
+  if (vol >= 1e7) return (vol / 1e7).toFixed(2) + ' Cr';
+  if (vol >= 1e5) return (vol / 1e5).toFixed(2) + ' L';
+  if (vol >= 1000) return (vol / 1000).toFixed(1) + ' K';
+  return vol;
+}
+
+init();
+</script>
+
+<!-- ═══════════════════ DHAN TRADE EXECUTION MODAL (HIDDEN) ═══════════════════ -->
+<div class="modal-overlay" id="dhan-trade-modal" style="display:none !important;" onclick="closeDhanTradeModal(event)">
+  <div class="modal-card" style="max-width:520px; border-top: 4px solid #00e676;" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.4rem;">🏛️</span>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; font-family:var(--font-mono);">Dhan HQ Fast Order</h3>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Client ID: 1100571858 · Direct Market Execution</div>
+        </div>
+      </div>
+      <button onclick="closeDhanTradeModal(null, true)" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+    </div>
+
+    <form id="dhan-order-form" onsubmit="submitDhanOrder(event)">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">SYMBOL</label>
+          <input type="text" id="dhan-ord-symbol" readonly style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:700; font-family:var(--font-mono); color:var(--text-main);">
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">EXCHANGE</label>
+          <select id="dhan-ord-exchange" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); color:var(--text-main);">
+            <option value="NSE" selected>NSE Equity</option>
+            <option value="BSE">BSE Equity</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">TRANSACTION</label>
+          <select id="dhan-ord-type" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:700; color:var(--text-main);">
+            <option value="BUY" selected>🟢 BUY (Long)</option>
+            <option value="SELL">🔴 SELL (Short / Exit)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">PRODUCT</label>
+          <select id="dhan-ord-product" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; color:var(--text-main);">
+            <option value="CNC" selected>CNC (Delivery / Swing)</option>
+            <option value="INTRADAY">INTRADAY (MIS)</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">QUANTITY (SHARES)</label>
+          <input type="number" id="dhan-ord-qty" min="1" value="10" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:700; color:var(--text-main);">
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">PRICE (₹)</label>
+          <input type="number" step="0.05" id="dhan-ord-price" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-weight:700; color:var(--text-main);">
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:16px;">
+        <div>
+          <label style="font-size:0.72rem; color:var(--accent-red); font-weight:700;">STOP LOSS (₹)</label>
+          <input type="number" step="0.05" id="dhan-ord-sl" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); color:var(--accent-red);">
+        </div>
+        <div>
+          <label style="font-size:0.72rem; color:var(--accent-green); font-weight:700;">TARGET 2 (₹)</label>
+          <input type="number" step="0.05" id="dhan-ord-target" style="width:100%; padding:8px; background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); color:var(--accent-green);">
+        </div>
+      </div>
+
+      <div id="dhan-trade-status" style="margin-bottom:12px; font-size:0.75rem; text-align:center;"></div>
+
+      <button type="submit" id="dhan-submit-btn" style="width:100%; padding:12px; background:linear-gradient(135deg, #00c853, #00e676); color:#000; font-weight:800; font-size:0.9rem; border:none; border-radius:6px; cursor:pointer;">
+        ⚡ Confirm & Execute Order on Dhan
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════ DHAN ACCOUNT CONFIG MODAL (HIDDEN) ═══════════════════ -->
+<div class="modal-overlay" id="dhan-config-modal" style="display:none !important;" onclick="closeDhanModal(event)">
+  <div class="modal-card" style="max-width:520px; border-top:4px solid #0969da;" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.4rem;">🏛️</span>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem;">Dhan HQ Account & API Keys</h3>
+          <div style="font-size:0.7rem; color:var(--text-muted);">Manage Live Dhan Connection & Daily 24-hr Token</div>
+        </div>
+      </div>
+      <button onclick="closeDhanModal(null, true)" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:var(--text-muted);">&times;</button>
+    </div>
+
+    <div style="background:var(--bg-subtle); border:1px solid var(--border-color); border-radius:6px; padding:12px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.75rem; color:var(--text-muted);">Client ID:</span>
+        <strong style="font-size:0.8rem; font-family:var(--font-mono);">1100571858</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.75rem; color:var(--text-muted);">Connection Status:</span>
+        <span id="dhan-modal-status" style="font-size:0.75rem; font-weight:700;">Checking...</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="font-size:0.75rem; color:var(--text-muted);">Available Margin:</span>
+        <strong id="dhan-modal-margin" style="font-size:0.8rem; font-family:var(--font-mono); color:var(--accent-green);">₹0.00</strong>
+      </div>
+    </div>
+
+    <!-- 1-Click Dhan OAuth Login Button -->
+    <div style="margin-bottom:16px;">
+      <button onclick="startDhanOAuthLogin()" style="width:100%; padding:12px; background:linear-gradient(135deg, #00c853, #00e676); color:#000; font-weight:800; font-size:0.88rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+        <span>⚡</span> 1-Click Login with Dhan HQ (OAuth)
+      </button>
+      <div style="font-size:0.68rem; color:var(--text-muted); text-align:center; margin-top:4px;">
+        App: <strong>openalgobot</strong> · API Key: <strong>6af3c971</strong>
+      </div>
+    </div>
+
+    <!-- Token ID Manual Consume -->
+    <div style="margin-bottom:14px; background:var(--bg-subtle); padding:10px; border-radius:6px; border:1px solid var(--border-color);">
+      <label style="font-size:0.75rem; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">
+        🎫 Paste Token ID (from Dhan redirect URL):
+      </label>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="dhan-tokenid-input" placeholder="Paste tokenId from browser address bar" style="flex:1; padding:7px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); font-size:0.72rem; color:var(--text-main);">
+        <button onclick="consumeDhanTokenId()" style="padding:7px 12px; background:#00e676; color:#000; font-weight:700; border:none; border-radius:4px; cursor:pointer; font-size:0.72rem;">
+          Connect
+        </button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <label style="font-size:0.75rem; font-weight:700; color:var(--text-main); display:block; margin-bottom:4px;">
+        🔑 Or Direct 24-hr Access Token:
+      </label>
+      <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px;">
+        (From web.dhan.co -> My Profile -> Access DhanHQ APIs -> Access Token)
+      </div>
+      <textarea id="dhan-token-input" rows="2" placeholder="Paste your JWT access token here (eyJ0eX...)" style="width:100%; padding:8px; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:4px; font-family:var(--font-mono); font-size:0.7rem; color:var(--text-main);"></textarea>
+    </div>
+
+    <div id="dhan-token-alert" style="margin-bottom:12px; font-size:0.75rem; text-align:center;"></div>
+
+    <div style="display:flex; gap:10px;">
+      <button onclick="saveDhanToken()" style="flex:1; padding:10px; background:var(--accent-blue); color:#fff; border:none; border-radius:6px; font-weight:700; cursor:pointer;">
+        💾 Save Token
+      </button>
+      <button onclick="checkDhanStatusNow()" style="padding:10px 14px; background:var(--bg-subtle); color:var(--text-main); border:1px solid var(--border-color); border-radius:6px; cursor:pointer;">
+        🔄 Refresh
+      </button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

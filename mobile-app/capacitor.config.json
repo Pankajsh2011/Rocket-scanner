@@ -1,0 +1,21 @@
+{
+  "appId": "com.rocketscan.nse.stockscreener",
+  "appName": "RocketScan: 20% Stock Screener",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "AdMob": {
+      "appIdAndroid": "ca-app-pub-3940256099942544~3347511713",
+      "appIdIos": "ca-app-pub-3940256099942544~1458002511",
+      "initializeForTesting": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#101522"
+    }
+  }
+}
