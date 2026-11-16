@@ -13,6 +13,7 @@ import time
 import subprocess
 from typing import Dict, Any, Optional
 
+CURL_BIN = "curl.exe" if os.name == 'nt' else "curl"
 CONFIG_PATH = r"C:\Users\Dell\.gemini\config\dhan_config.json"
 
 
@@ -60,7 +61,7 @@ class DhanService:
         """Step 1: Generate Consent session and return DhanHQ OAuth Login URL"""
         url = f"https://auth.dhan.co/app/generate-consent?client_id={self.client_id}"
         cmd = [
-            "curl.exe", "-s", "-X", "POST",
+            CURL_BIN, "-s", "-X", "POST",
             "-H", f"app_id: {self.api_key}",
             "-H", f"app_secret: {self.api_secret}",
             "-H", "Accept: application/json",
@@ -86,7 +87,7 @@ class DhanService:
         """Step 2: Consume Token ID returned after login and save 24-hr access token"""
         url = f"https://auth.dhan.co/app/consumeApp-consent?tokenId={token_id.strip()}"
         cmd = [
-            "curl.exe", "-s", "-X", "POST",
+            CURL_BIN, "-s", "-X", "POST",
             "-H", f"app_id: {self.api_key}",
             "-H", f"app_secret: {self.api_secret}",
             "-H", "Accept: application/json",
@@ -133,7 +134,7 @@ class DhanService:
         """Execute request to Dhan API via native curl for maximum reliability"""
         url = f"{self.base_url}{endpoint}"
         cmd = [
-            "curl.exe", "-s",
+            CURL_BIN, "-s",
             "-H", f"access-token: {self.access_token}",
             "-H", f"client-id: {self.client_id}",
             "-H", "Content-Type: application/json",
