@@ -19,6 +19,15 @@ import warnings
 warnings.filterwarnings('ignore')
 from candlestick_engine import CandlestickPatternDetector
 
+# Quant Screeners: Minervini VCP + Stockbee Episodic Pivot
+try:
+    from quant_screeners import compute_vcp_indicators, compute_ep_indicators
+    QUANT_SCREENERS_AVAILABLE = True
+except ImportError:
+    QUANT_SCREENERS_AVAILABLE = False
+    compute_vcp_indicators = None
+    compute_ep_indicators = None
+
 # ─────────────────────────────────────────────────
 # NSE / BSE COMPLETE STOCK UNIVERSE
 # ─────────────────────────────────────────────────
@@ -799,7 +808,7 @@ class ScreenerEngine:
                 ret_1d, ret_5d, ret_1m
             )
             
-            return {
+            indicators = {
                 'candlestick_patterns': candlestick_patterns,
                 'pattern_ids': pattern_ids,
                 'pattern_names': pattern_names,
@@ -879,9 +888,21 @@ class ScreenerEngine:
                 # Composite
                 'momentum_score': round(float(momentum_score), 1),
             }
+
+            # ── Quant Screeners: VCP + EP (safe, non-breaking) ──
+            if QUANT_SCREENERS_AVAILABLE:
+                try:
+                    vcp_data = compute_vcp_indicators(df)
+                    ep_data = compute_ep_indicators(df)
+                    indicators.update(vcp_data)
+                    indicators.update(ep_data)
+                except Exception:
+                    pass
+
+            return indicators
+
         except Exception as e:
-            return {}
-    
+            return {}    
     def _compute_momentum_score(self, rsi, macd_hist, vol_ratio, adx, r1d, r5d, r1m) -> float:
         """Score 0-100 for momentum strength"""
         score = 50  # Base
@@ -1675,6 +1696,25 @@ class ScreenerEngine:
         """75. Upper Circuit Momentum Lock (Day % >= 20.0%)"""
         return ind.get('ret_1d', 0) >= 20.0
 
+    # ── MODE 76-78: QUANT SCREENERS (Minervini VCP + Stockbee EP) ──
+
+    def screen_minervini_stage2(self, ind: Dict) -> bool:
+        """76. Minervini Stage-2 Uptrend (7-Point Trend Template, 5/7 criteria for Indian market)"""
+        return ind.get('vcp_trend_passed', False) and ind.get('vcp_trend_criteria', 0) >= 5
+
+    def screen_vcp_breakout(self, ind: Dict) -> bool:
+        """77. VCP Volatility Contraction Pattern (2+ contractions + volume dry-up near pivot)"""
+        return (
+            ind.get('vcp_pattern_valid', False) and
+            ind.get('vcp_trend_passed', False) and
+            ind.get('vcp_volume_dry_up', False) and
+            ind.get('vcp_num_contractions', 0) >= 2
+        )
+
+    def screen_episodic_pivot(self, ind: Dict) -> bool:
+        """78. Stockbee Episodic Pivot - Day-1 Gap-Up on Massive Volume (Catalyst Event)"""
+        return ind.get('ep_valid', False) and ind.get('ep_volume_shock', 0) >= 2.5
+
     # ── SCREENER MODE REGISTRY ──
     SCREENER_MODES = {
         1: ("Momentum Breakout", "screen_momentum_breakout", "🚀", "BULLISH"),
@@ -1752,6 +1792,10 @@ class ScreenerEngine:
         73: ("Bullish Harami Reversal", "screen_bullish_harami_reversal", "🤰", "BULLISH"),
         74: ("Piercing Line Support", "screen_piercing_line", "🗡️", "BULLISH"),
         75: ("Upper Circuit Momentum Lock", "screen_upper_circuit_lock", "🔒", "BULLISH"),
+        # ── QUANT SCREENERS: Minervini VCP + Stockbee Episodic Pivot ──
+        76: ("Minervini Stage-2 Uptrend", "screen_minervini_stage2", "📐", "BULLISH"),
+        77: ("VCP Volatility Contraction", "screen_vcp_breakout", "🗜️", "BULLISH"),
+        78: ("Stockbee Episodic Pivot (EP)", "screen_episodic_pivot", "🌋", "BULLISH"),
     }
     
     def run_all_screeners(self, symbol: str, force_refresh: bool = False) -> Dict:
