@@ -579,6 +579,7 @@ body.dark-mode .grok-avatar {
     <button class="nav-tab" onclick="switchView('rockets')">🚀 20%+ Circuit Rockets</button>
     <button class="nav-tab" onclick="switchView('ipos')">🆕 1st Day IPOs & New Listed</button>
     <button class="nav-tab" onclick="switchView('fno')">⚡ F&O Stocks Universe</button>
+    <button class="nav-tab" onclick="switchView('options')">🎯 Option Chain & Trade Finder</button>
   </div>
   <button class="rocket-pill-btn" onclick="quickScan20Rockets()">
     🔥 Scan 20%+ Rockets Now
@@ -981,6 +982,151 @@ body.dark-mode .grok-avatar {
   </div>
 </div>
 
+<!-- ═══════════════════ TAB 7: OPTION CHAIN & TRADE FINDER ═══════════════════ -->
+<div class="options-view-container" id="view-options" style="display:none; padding:20px 24px;">
+  <!-- Options Control Hero -->
+  <div class="options-hero" style="background:linear-gradient(135deg, rgba(255,179,0,0.1), rgba(124,58,237,0.15)); border:1px solid rgba(255,179,0,0.3); border-radius:8px; padding:16px 20px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="font-size:1.3rem; color:#ffb300; margin:0; display:flex; align-items:center; gap:8px;">
+        🎯 ALL INDICES OPTION CHAIN & ADVANCED CALL/PUT TRADE FINDER
+      </h2>
+      <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
+        Real-Time Greeks (Delta, Gamma, Theta, Vega, IV) · PCR & Max Pain · Institutional OI Walls · 1-Click Paper Trading
+      </p>
+    </div>
+    
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <select id="opt-expiry-select" class="select-ctl" onchange="changeOptionExpiry(this.value)" style="min-width:140px; font-weight:700;">
+        <!-- Injected dynamically -->
+      </select>
+      <button class="btn-scan" style="background:#ffb300; color:#000; padding:7px 16px; font-size:0.82rem; font-weight:800;" onclick="loadAndRenderOptionChain(true)">
+        🔄 Refresh Chain
+      </button>
+    </div>
+  </div>
+
+  <!-- Index Selector Buttons Bar -->
+  <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center;">
+    <span style="font-size:0.75rem; color:var(--text-muted); font-weight:700;">SELECT INDEX:</span>
+    <button class="index-pill active" id="idx-btn-NIFTY" onclick="selectIndex('NIFTY')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:800; background:#ffb300; color:#000; border:none; cursor:pointer;">
+      🏆 NIFTY 50
+    </button>
+    <button class="index-pill" id="idx-btn-BANKNIFTY" onclick="selectIndex('BANKNIFTY')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-main); cursor:pointer;">
+      🏦 BANK NIFTY
+    </button>
+    <button class="index-pill" id="idx-btn-FINNIFTY" onclick="selectIndex('FINNIFTY')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-main); cursor:pointer;">
+      💳 FIN NIFTY
+    </button>
+    <button class="index-pill" id="idx-btn-MIDCPNIFTY" onclick="selectIndex('MIDCPNIFTY')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-main); cursor:pointer;">
+      📈 MIDCAP NIFTY
+    </button>
+    <button class="index-pill" id="idx-btn-SENSEX" onclick="selectIndex('SENSEX')" style="padding:6px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; background:var(--bg-card); border:1px solid var(--border-color); color:var(--text-main); cursor:pointer;">
+      🏛️ BSE SENSEX
+    </button>
+  </div>
+
+  <!-- Real-Time Metrics Ribbon -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:16px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">SPOT PRICE</div>
+      <div style="font-size:1.3rem; font-weight:800; color:var(--accent-blue);" id="opt-spot-price">--</div>
+      <div style="font-size:0.7rem; font-family:var(--font-mono);" id="opt-spot-change">--</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">INDEX TREND METER</div>
+      <div style="font-size:1.15rem; font-weight:800;" id="opt-trend-label">--</div>
+      <div style="font-size:0.7rem; color:var(--text-muted);" id="opt-trend-action">--</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">PUT-CALL RATIO (PCR)</div>
+      <div style="font-size:1.3rem; font-weight:800; color:#00e676;" id="opt-pcr-val">--</div>
+      <div style="font-size:0.7rem; color:var(--text-muted);" id="opt-pcr-desc">--</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">MAX PAIN STRIKE</div>
+      <div style="font-size:1.3rem; font-weight:800; color:#ffb300;" id="opt-max-pain">--</div>
+      <div style="font-size:0.7rem; color:var(--text-muted);">Optimal Expiry Pin Level</div>
+    </div>
+    <div style="background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:8px;">
+      <div style="font-size:0.68rem; color:var(--text-muted); font-family:var(--font-mono);">MAJOR SUPPORT & RESISTANCE</div>
+      <div style="font-size:0.85rem; font-weight:800; color:#00e676;" id="opt-support-wall">Supp: --</div>
+      <div style="font-size:0.85rem; font-weight:800; color:#ff5252;" id="opt-resist-wall">Res: --</div>
+    </div>
+  </div>
+
+  <!-- 🎯 ADVANCED CALL/PUT TRADE FINDER SECTION -->
+  <div style="background:linear-gradient(135deg, rgba(0,230,118,0.06), rgba(0,212,255,0.08)); border:1px solid rgba(0,230,118,0.25); border-radius:10px; padding:16px 20px; margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:1.5rem;">🎯</span>
+        <div>
+          <h3 style="margin:0; font-size:1.15rem; color:#00e676; font-family:var(--font-mono);">
+            HIGH-CONVICTION CALL & PUT TRADE FINDER (AI / GREEKS ALGO)
+          </h3>
+          <div style="font-size:0.72rem; color:var(--text-muted);">
+            Scans Delta Sweet Spot (0.48 - 0.58) · High Gamma Acceleration · Institutional OI Traps & Short Covering
+          </div>
+        </div>
+      </div>
+      <span style="font-size:0.72rem; font-weight:800; background:rgba(0,230,118,0.15); color:#00e676; border:1px solid #00e676; padding:3px 10px; border-radius:4px;">
+        ⚡ LIVE OPTIONS ALGO
+      </span>
+    </div>
+
+    <!-- Trade Cards Grid -->
+    <div id="option-trades-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:14px;">
+      <!-- Injected dynamically -->
+    </div>
+  </div>
+
+  <!-- INTERACTIVE OPTION CHAIN TABLE -->
+  <div style="background:var(--bg-card); border:1px solid var(--border-color); border-radius:8px; padding:16px; overflow-x:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+      <div style="font-size:0.9rem; font-weight:800; font-family:var(--font-mono); color:var(--text-main);">
+        📊 FULL OPTION CHAIN (CALLS & PUTS WITH LIVE GREEKS)
+      </div>
+      <div style="display:flex; gap:12px; font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono);">
+        <span><strong style="color:#00e676;">CALLS (CE)</strong>: Left</span>
+        <span><strong style="color:#ffb300;">STRIKE</strong>: Center</span>
+        <span><strong style="color:#ff5252;">PUTS (PE)</strong>: Right</span>
+      </div>
+    </div>
+
+    <table class="pro-table" id="option-chain-table" style="font-size:0.72rem; width:100%; text-align:center;">
+      <thead>
+        <tr style="background:var(--bg-subtle);">
+          <th colspan="7" style="color:#00e676; border-right:2px solid var(--border-color);">CALLS (CE)</th>
+          <th style="color:#ffb300; background:rgba(255,179,0,0.1); border-left:1px solid var(--border-color); border-right:1px solid var(--border-color);">STRIKE</th>
+          <th colspan="7" style="color:#ff5252; border-left:2px solid var(--border-color);">PUTS (PE)</th>
+        </tr>
+        <tr>
+          <!-- Calls -->
+          <th>OI</th>
+          <th>Chg OI</th>
+          <th>IV</th>
+          <th>Delta</th>
+          <th>Theta</th>
+          <th>LTP</th>
+          <th style="border-right:2px solid var(--border-color);">Action</th>
+          <!-- Strike -->
+          <th style="background:rgba(255,179,0,0.08); font-weight:800;">STRIKE</th>
+          <!-- Puts -->
+          <th style="border-left:2px solid var(--border-color);">Action</th>
+          <th>LTP</th>
+          <th>Theta</th>
+          <th>Delta</th>
+          <th>IV</th>
+          <th>Chg OI</th>
+          <th>OI</th>
+        </tr>
+      </thead>
+      <tbody id="option-chain-tbody">
+        <!-- Injected dynamically -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- ═══════════════════ DETAIL MODAL ═══════════════════ -->
 <div class="modal-overlay" id="detail-modal" onclick="closeModal(event)">
   <div class="modal-card" id="modal-card-content">
@@ -1207,6 +1353,7 @@ async function init() {
   loadPaperAccountSummary();
   loadAndRenderIposView();
   loadAndRenderFnoView();
+  loadAndRenderOptionChain();
   setInterval(fetchLiveMarketStatus, 15000);
 }
 
@@ -1228,7 +1375,8 @@ function switchView(viewName) {
       (viewName === 'table' && idx === 2) ||
       (viewName === 'rockets' && idx === 3) ||
       (viewName === 'ipos' && idx === 4) ||
-      (viewName === 'fno' && idx === 5)
+      (viewName === 'fno' && idx === 5) ||
+      (viewName === 'options' && idx === 6)
     ) {
       tab.classList.add('active');
     }
@@ -1242,6 +1390,8 @@ function switchView(viewName) {
   if (ipoEl) ipoEl.style.display = viewName === 'ipos' ? 'block' : 'none';
   const fnoEl = document.getElementById('view-fno');
   if (fnoEl) fnoEl.style.display = viewName === 'fno' ? 'block' : 'none';
+  const optEl = document.getElementById('view-options');
+  if (optEl) optEl.style.display = viewName === 'options' ? 'block' : 'none';
 
   if (viewName === 'rockets') {
     renderRocketsView();
@@ -1249,6 +1399,9 @@ function switchView(viewName) {
     loadAndRenderIposView();
   } else if (viewName === 'fno') {
     loadAndRenderFnoView();
+  } else if (viewName === 'options') {
+    loadAndRenderOptionChain();
+    loadAndRenderOptionTradeFinder();
   }
 }
 
@@ -2170,6 +2323,312 @@ function quickScanFnoUniverse() {
   document.getElementById('universe-select').value = 'fno_universe';
   switchView('cards');
   triggerScan();
+}
+
+// ═══════════════════ TAB 7: OPTION CHAIN & TRADE FINDER ═══════════════════
+let currentOptionIndex = 'NIFTY';
+let currentOptionExpiry = '';
+let currentOptionChainData = null;
+
+function selectIndex(idxKey) {
+  currentOptionIndex = idxKey;
+  currentOptionExpiry = ''; // Reset expiry to default for selected index
+  
+  // Update button active styling
+  const indices = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY', 'SENSEX'];
+  indices.forEach(k => {
+    const btn = document.getElementById(`idx-btn-${k}`);
+    if (btn) {
+      if (k === idxKey) {
+        btn.style.background = '#ffb300';
+        btn.style.color = '#000';
+        btn.style.border = 'none';
+        btn.classList.add('active');
+      } else {
+        btn.style.background = 'var(--bg-card)';
+        btn.style.color = 'var(--text-main)';
+        btn.style.border = '1px solid var(--border-color)';
+        btn.classList.remove('active');
+      }
+    }
+  });
+
+  loadAndRenderOptionChain(true);
+  loadAndRenderOptionTradeFinder();
+}
+
+function changeOptionExpiry(expVal) {
+  currentOptionExpiry = expVal;
+  loadAndRenderOptionChain(false);
+  loadAndRenderOptionTradeFinder();
+}
+
+async function loadAndRenderOptionChain(forceReloadExpiry = false) {
+  const tbody = document.getElementById('option-chain-tbody');
+  if (!tbody) return;
+
+  try {
+    let url = `/api/options/chain?index=${currentOptionIndex}`;
+    if (currentOptionExpiry) {
+      url += `&expiry=${encodeURIComponent(currentOptionExpiry)}`;
+    }
+    const res = await fetch(url);
+    const result = await res.json();
+    if (result.status !== 'success' || !result.data) {
+      console.warn('Option chain fetch error:', result);
+      return;
+    }
+
+    const data = result.data;
+    currentOptionChainData = data;
+    currentOptionExpiry = data.selected_expiry;
+
+    // Populate Expiry Dropdown if empty or forced
+    const expSelect = document.getElementById('opt-expiry-select');
+    if (expSelect && (forceReloadExpiry || expSelect.children.length === 0)) {
+      expSelect.innerHTML = (data.expiry_dates || []).map(exp => `
+        <option value="${exp}" ${exp === data.selected_expiry ? 'selected' : ''}>
+          📅 ${exp} (${data.dte_days}d)
+        </option>
+      `).join('');
+    }
+
+    // Update Ribbon Metrics
+    const spotEl = document.getElementById('opt-spot-price');
+    if (spotEl) spotEl.textContent = `₹${data.spot_price.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+
+    const chgEl = document.getElementById('opt-spot-change');
+    if (chgEl) {
+      const isPos = data.change >= 0;
+      chgEl.style.color = isPos ? '#00e676' : '#ff5252';
+      chgEl.textContent = `${isPos ? '+' : ''}${data.change} (${isPos ? '+' : ''}${data.change_pct}%)`;
+    }
+
+    const trendVal = document.getElementById('opt-trend-val');
+    if (trendVal) {
+      trendVal.style.color = (data.trend_meter && data.trend_meter.color) || '#00e676';
+      trendVal.textContent = (data.trend_meter && data.trend_meter.score >= 0 ? '+' : '') + (data.trend_meter ? data.trend_meter.score : 0);
+    }
+    const trendDesc = document.getElementById('opt-trend-desc');
+    if (trendDesc) {
+      trendDesc.style.color = (data.trend_meter && data.trend_meter.color) || '#00e676';
+      trendDesc.textContent = (data.trend_meter && data.trend_meter.rating) || 'NEUTRAL';
+    }
+
+    const pcrVal = document.getElementById('opt-pcr-val');
+    if (pcrVal) pcrVal.textContent = data.summary.pcr_oi;
+    const pcrDesc = document.getElementById('opt-pcr-desc');
+    if (pcrDesc) {
+      const sentiment = data.summary.net_sentiment || 'NEUTRAL';
+      pcrDesc.textContent = `Sentiment: ${sentiment}`;
+      pcrDesc.style.color = sentiment === 'BULLISH' ? '#00e676' : (sentiment === 'BEARISH' ? '#ff5252' : 'var(--text-muted)');
+    }
+
+    const maxPain = document.getElementById('opt-max-pain');
+    if (maxPain) maxPain.textContent = `₹${data.summary.max_pain.toLocaleString('en-IN')}`;
+
+    const suppWall = document.getElementById('opt-support-wall');
+    if (suppWall) suppWall.textContent = `Supp: ₹${data.summary.support.toLocaleString('en-IN')}`;
+
+    const resWall = document.getElementById('opt-resist-wall');
+    if (resWall) resWall.textContent = `Res: ₹${data.summary.resistance.toLocaleString('en-IN')}`;
+
+    // Render Option Chain Table
+    renderOptionChainTable(data);
+  } catch (err) {
+    console.error('Failed to load option chain:', err);
+  }
+}
+
+function renderOptionChainTable(data) {
+  const tbody = document.getElementById('option-chain-tbody');
+  if (!tbody || !data || !data.strikes) return;
+
+  const strikes = data.strikes;
+  tbody.innerHTML = strikes.map(s => {
+    const isAtm = s.is_atm;
+    const atmBg = isAtm ? 'background:rgba(255,179,0,0.18); font-weight:800;' : '';
+    const atmBadge = isAtm ? '<span style="background:#ffb300; color:#000; font-size:0.6rem; padding:1px 4px; border-radius:3px; margin-left:4px;">ATM</span>' : '';
+
+    const ce = s.ce || {};
+    const pe = s.pe || {};
+
+    const ceDeltaCol = ce.delta >= 0.5 ? '#00e676' : 'var(--text-muted)';
+    const peDeltaCol = Math.abs(pe.delta) >= 0.5 ? '#ff5252' : 'var(--text-muted)';
+
+    return `
+      <tr style="${atmBg} border-bottom:1px solid var(--border-color);">
+        <!-- CALLS (CE) -->
+        <td style="font-family:var(--font-mono);">${(ce.oi || 0).toLocaleString('en-IN')}</td>
+        <td style="font-family:var(--font-mono); color:${(ce.oi_chg || 0) >= 0 ? '#00e676' : '#ff5252'};">
+          ${(ce.oi_chg || 0) >= 0 ? '+' : ''}${(ce.oi_chg || 0).toLocaleString('en-IN')}
+        </td>
+        <td style="font-family:var(--font-mono); color:var(--text-muted);">${ce.iv || '--'}%</td>
+        <td style="font-family:var(--font-mono); color:${ceDeltaCol}; font-weight:700;">${ce.delta !== undefined ? ce.delta : '--'}</td>
+        <td style="font-family:var(--font-mono); color:#ff5252;">${ce.theta !== undefined ? ce.theta : '--'}</td>
+        <td style="font-family:var(--font-mono); font-weight:800; color:#00e676; font-size:0.8rem;">₹${ce.ltp !== undefined ? ce.ltp : '--'}</td>
+        <td style="border-right:2px solid var(--border-color); padding:4px;">
+          <button onclick="openPaperOrderModal('${ce.symbol}', ${ce.ltp || 100}, 0, 0, 'BUY')" 
+                  style="background:#059669; color:#fff; border:none; border-radius:4px; font-weight:800; font-size:0.65rem; padding:3px 8px; cursor:pointer;" 
+                  title="Trade Call Option">
+            Trade CE
+          </button>
+        </td>
+
+        <!-- STRIKE (CENTER) -->
+        <td style="background:${isAtm ? 'rgba(255,179,0,0.3)' : 'rgba(255,179,0,0.06)'}; font-weight:800; font-family:var(--font-mono); font-size:0.82rem; color:#ffb300; border-left:1px solid var(--border-color); border-right:1px solid var(--border-color);">
+          ${s.strike.toLocaleString('en-IN')}${atmBadge}
+        </td>
+
+        <!-- PUTS (PE) -->
+        <td style="border-left:2px solid var(--border-color); padding:4px;">
+          <button onclick="openPaperOrderModal('${pe.symbol}', ${pe.ltp || 100}, 0, 0, 'BUY')" 
+                  style="background:#dc2626; color:#fff; border:none; border-radius:4px; font-weight:800; font-size:0.65rem; padding:3px 8px; cursor:pointer;" 
+                  title="Trade Put Option">
+            Trade PE
+          </button>
+        </td>
+        <td style="font-family:var(--font-mono); font-weight:800; color:#ff5252; font-size:0.8rem;">₹${pe.ltp !== undefined ? pe.ltp : '--'}</td>
+        <td style="font-family:var(--font-mono); color:#ff5252;">${pe.theta !== undefined ? pe.theta : '--'}</td>
+        <td style="font-family:var(--font-mono); color:${peDeltaCol}; font-weight:700;">${pe.delta !== undefined ? pe.delta : '--'}</td>
+        <td style="font-family:var(--font-mono); color:var(--text-muted);">${pe.iv || '--'}%</td>
+        <td style="font-family:var(--font-mono); color:${(pe.oi_chg || 0) >= 0 ? '#00e676' : '#ff5252'};">
+          ${(pe.oi_chg || 0) >= 0 ? '+' : ''}${(pe.oi_chg || 0).toLocaleString('en-IN')}
+        </td>
+        <td style="font-family:var(--font-mono);">${(pe.oi || 0).toLocaleString('en-IN')}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function loadAndRenderOptionTradeFinder() {
+  const container = document.getElementById('option-trades-grid');
+  if (!container) return;
+
+  container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">Scanning Option Chain & Greeks for Alpha Setups...</div>';
+
+  try {
+    let url = `/api/options/trade-finder?index=${currentOptionIndex}`;
+    if (currentOptionExpiry) {
+      url += `&expiry=${encodeURIComponent(currentOptionExpiry)}`;
+    }
+    const res = await fetch(url);
+    const result = await res.json();
+
+    if (result.status !== 'success' || !result.trades || result.trades.length === 0) {
+      container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--text-muted);">No high-conviction option setups detected at current market state. Check back shortly.</div>';
+      return;
+    }
+
+    const trades = result.trades;
+    container.innerHTML = trades.map(t => {
+      const isCE = t.option_type === 'CE';
+      const borderCol = isCE ? '#00e676' : '#ff5252';
+      const badgeBg = isCE ? 'rgba(0,230,118,0.18)' : 'rgba(255,82,82,0.18)';
+      const badgeTextCol = isCE ? '#00e676' : '#ff5252';
+      const acc = t.confluence_accuracy || {};
+      const gr = t.greeks || {};
+
+      return `
+        <div style="background:var(--bg-card); border:1px solid ${borderCol}; border-radius:8px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+          <div>
+            <!-- Header Row -->
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+              <div>
+                <span style="font-size:0.65rem; font-weight:800; background:${badgeBg}; color:${badgeTextCol}; border:1px solid ${borderCol}; padding:2px 7px; border-radius:4px; font-family:var(--font-mono);">
+                  ${t.action} ${t.option_type} (${t.bias})
+                </span>
+                <h4 style="margin:6px 0 0 0; font-size:1.05rem; font-family:var(--font-mono); color:var(--text-main); font-weight:800;">
+                  ${t.symbol}
+                </h4>
+              </div>
+              <span style="font-size:0.7rem; font-weight:800; background:rgba(255,75,43,0.15); color:${acc.color || '#ff4b2b'}; border:1px solid ${acc.color || '#ff4b2b'}; padding:3px 8px; border-radius:4px;">
+                ${acc.badge || '🎯 95% CONFLUENCE'}
+              </span>
+            </div>
+
+            <!-- Strategy Name -->
+            <div style="font-size:0.8rem; font-weight:700; color:#ffb300; margin-bottom:10px;">
+              ${t.strategy_name}
+            </div>
+
+            <!-- Quantitative Levels Grid -->
+            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; background:var(--bg-subtle); border-radius:6px; padding:10px; margin-bottom:12px; font-family:var(--font-mono); text-align:center;">
+              <div>
+                <div style="font-size:0.62rem; color:var(--text-muted);">ENTRY</div>
+                <div style="font-size:0.85rem; font-weight:800; color:var(--accent-blue);">₹${t.entry_price}</div>
+              </div>
+              <div>
+                <div style="font-size:0.62rem; color:var(--text-muted);">STOP LOSS</div>
+                <div style="font-size:0.85rem; font-weight:800; color:#ff5252;">₹${t.stop_loss}</div>
+              </div>
+              <div>
+                <div style="font-size:0.62rem; color:var(--text-muted);">TARGET 1</div>
+                <div style="font-size:0.85rem; font-weight:800; color:#00e676;">₹${t.target1}</div>
+              </div>
+              <div>
+                <div style="font-size:0.62rem; color:var(--text-muted);">TARGET 2</div>
+                <div style="font-size:0.85rem; font-weight:800; color:#00e676;">₹${t.target2}</div>
+              </div>
+            </div>
+
+            <!-- Greeks Strip -->
+            <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:4px; background:rgba(0,0,0,0.2); border:1px solid var(--border-color); border-radius:6px; padding:8px; margin-bottom:12px; font-family:var(--font-mono); font-size:0.68rem; text-align:center;">
+              <div>
+                <div style="color:var(--text-muted);">Δ Delta</div>
+                <div style="font-weight:800; color:${isCE ? '#00e676' : '#ff5252'};">${gr.delta || '--'}</div>
+              </div>
+              <div>
+                <div style="color:var(--text-muted);">Γ Gamma</div>
+                <div style="font-weight:700;">${gr.gamma || '--'}</div>
+              </div>
+              <div>
+                <div style="color:var(--text-muted);">θ Theta</div>
+                <div style="color:#ff5252; font-weight:700;">${gr.theta || '--'}</div>
+              </div>
+              <div>
+                <div style="color:var(--text-muted);">ν Vega</div>
+                <div style="font-weight:700;">${gr.vega || '--'}</div>
+              </div>
+              <div>
+                <div style="color:var(--text-muted);">IV</div>
+                <div style="font-weight:700; color:#ffb300;">${gr.iv || '--'}%</div>
+              </div>
+            </div>
+
+            <!-- Risk / Reward & Capital Metrics -->
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.72rem; color:var(--text-muted); margin-bottom:10px; font-family:var(--font-mono);">
+              <span>Lot Size: <strong style="color:var(--text-main);">${t.lot_size}</strong></span>
+              <span>R:R: <strong style="color:#00e676;">1 : ${t.rr_ratio}</strong></span>
+              <span>Margin: <strong style="color:#ffb300;">₹${(t.margin_required || 0).toLocaleString('en-IN')}</strong></span>
+            </div>
+
+            <!-- Confluence Reasons -->
+            ${acc.reasons && acc.reasons.length ? `
+              <div style="background:rgba(0,230,118,0.06); border-left:3px solid #00e676; padding:6px 10px; border-radius:0 4px 4px 0; font-size:0.7rem; color:var(--text-main); margin-bottom:12px;">
+                ${acc.reasons.map(r => `<div>• ${r}</div>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex; gap:8px;">
+            <button onclick="openPaperOrderModal('${t.symbol}', ${t.entry_price}, ${t.stop_loss}, ${t.target1}, 'BUY')" 
+                    style="flex:1; background:linear-gradient(135deg, #059669, #10b981); color:#fff; border:none; padding:9px 12px; border-radius:6px; font-weight:800; font-size:0.78rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span>📝</span> Paper Trade Setup
+            </button>
+            <button onclick="copyTradeBlueprint('${t.symbol}', ${t.entry_price}, ${t.stop_loss}, ${t.target1})" 
+                    style="background:var(--bg-subtle); color:var(--text-main); border:1px solid var(--border-color); padding:9px 12px; border-radius:6px; font-weight:700; font-size:0.75rem; cursor:pointer;" 
+                    title="Copy Signal to Clipboard">
+              📋
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:var(--accent-red);">Error loading trade setups: ${err.message}</div>`;
+  }
 }
 
 // ═══════════════════ DETAIL MODAL ═══════════════════

@@ -26,6 +26,7 @@ from screener_engine import (
     SECTOR_AUTO, SECTOR_FMCG, SECTOR_REALTY,
     SECTOR_METAL, SECTOR_ENERGY, SECTOR_DEFENCE, SECTOR_CHEMICALS
 )
+from options_engine import option_engine
 
 import numpy as np
 from flask.json.provider import DefaultJSONProvider
@@ -947,6 +948,49 @@ def auto_discover_ipos():
         'total_ipos': len(listings)
     })
 
+
+# ─────────────────────────────────────────────────
+# OPTION CHAIN & ADVANCED TRADE FINDER ROUTES
+# ─────────────────────────────────────────────────
+
+@app.route('/api/options/indices')
+def api_options_indices():
+    """Return all supported Indian indices with live spot quote"""
+    return jsonify({
+        'status': 'success',
+        'indices': option_engine.get_supported_indices()
+    })
+
+@app.route('/api/options/chain')
+def api_options_chain():
+    """Return full option chain for requested index & expiry with Greeks & PCR"""
+    index_key = request.args.get('index', 'NIFTY').upper()
+    expiry = request.args.get('expiry')
+    try:
+        chain = option_engine.get_option_chain(index_key, expiry)
+        return jsonify({'status': 'success', 'data': chain})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/options/trade-finder')
+def api_options_trade_finder():
+    """Sabse Advance Tool: Scan option chain and find high-conviction Call/Put trades"""
+    index_key = request.args.get('index', 'NIFTY').upper()
+    expiry = request.args.get('expiry')
+    try:
+        trades = option_engine.find_best_option_trades(index_key, expiry)
+        chain = option_engine.get_option_chain(index_key, expiry)
+        return jsonify({
+            'status': 'success',
+            'index': index_key,
+            'spot_price': chain['spot_price'],
+            'trend_meter': chain['trend_meter'],
+            'summary': chain['summary'],
+            'trades_count': len(trades),
+            'trades': trades
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 # ─────────────────────────────────────────────────
