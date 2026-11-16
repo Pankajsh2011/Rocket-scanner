@@ -14,7 +14,13 @@ import subprocess
 from typing import Dict, Any, Optional
 
 CURL_BIN = "curl.exe" if os.name == 'nt' else "curl"
-CONFIG_PATH = r"C:\Users\Dell\.gemini\config\dhan_config.json"
+
+# Config path: Windows local path OR env var OR same dir as this file (Render/Linux)
+_DEFAULT_WIN_PATH = r"C:\Users\Dell\.gemini\config\dhan_config.json"
+CONFIG_PATH = os.environ.get(
+    "DHAN_CONFIG_PATH",
+    _DEFAULT_WIN_PATH if os.name == 'nt' else os.path.join(os.path.dirname(__file__), "data", "dhan_config.json")
+)
 
 
 class DhanService:
